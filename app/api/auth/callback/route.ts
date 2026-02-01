@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
-import { prisma } from "@/lib/prismaClient"; // твой Prisma client
+import { prisma } from "@/lib/prisma"; // твой Prisma client
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const { data: { user }, error } = await supabase.auth.getUser(access_token);
 
-  if (error) return NextResponse.redirect("/app/login");
+  if (error || !user || !user.email) return NextResponse.redirect(new URL("/login", req.url));
 
   // Создаем или обновляем запись в User
   await prisma.user.upsert({

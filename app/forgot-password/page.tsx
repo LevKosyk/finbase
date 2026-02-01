@@ -61,15 +61,16 @@ export default function ForgotPasswordPage() {
             </div>
             <p className="text-sm text-gray-500">
               Не отримали листа?{" "}
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setSent(false);
                   setEmail("");
                 }}
-                className="text-[var(--fin-primary)] font-semibold hover:underline"
+                className="p-0 h-auto font-semibold hover:bg-transparent hover:underline text-[var(--fin-primary)] hover:text-[var(--fin-primary)]"
               >
                 Спробувати ще раз
-              </button>
+              </Button>
             </p>
           </div>
         ) : (

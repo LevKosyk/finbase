@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { Calendar, ChevronDown, Download, TrendingUp, Wallet, ArrowUpRight, ArrowDownRight, Users } from "lucide-react";
 import { useState } from 'react';
+import { Button } from "@/components/ui/Button";
 
 const incomeData = [
   { name: 'Січ', amount: 4000, tax: 200 },
@@ -57,17 +58,18 @@ export default function StatisticsPage() {
         </div>
         <div className="flex gap-2 bg-gray-100/50 p-1.5 rounded-2xl">
             {['month', 'quarter', 'year'].map((tab) => (
-                <button
+                <Button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    variant={activeTab === tab ? 'secondary' : 'ghost'}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm h-auto ${
                          activeTab === tab 
-                            ? 'bg-white text-gray-900 shadow-sm' 
-                            : 'text-gray-500 hover:text-gray-900'
+                            ? 'bg-white text-gray-900' 
+                            : 'text-gray-500 hover:text-gray-900 bg-transparent hover:bg-transparent shadow-none'
                     }`}
                 >
                     {tab === 'month' ? 'Місяць' : tab === 'quarter' ? 'Квартал' : 'Рік'}
-                </button>
+                </Button>
             ))}
         </div>
       </div>
@@ -115,9 +117,9 @@ export default function StatisticsPage() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none group-hover:bg-white/20 transition-colors"></div>
             <p className="text-gray-400 text-sm font-bold mb-1 relative z-10">Чистий прибуток</p>
             <h3 className="text-3xl font-extrabold text-white mb-4 relative z-10">18 572 ₴</h3>
-            <button className="relative z-10 w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-colors border border-white/10">
+            <Button variant="ghost" className="relative z-10 w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-colors border border-white/10 text-white h-auto">
                 Завантажити звіт
-            </button>
+            </Button>
          </div>
       </div>
 
@@ -178,7 +180,7 @@ export default function StatisticsPage() {
             <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex-1 flex flex-col">
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Структура</h3>
                 <div className="flex-1 relative">
-                    <ResponsiveContainer width="100%" height="200">
+                    <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                             <Pie
                                 data={categoryData}

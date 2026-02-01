@@ -3,6 +3,7 @@ import IncomeSummary from "@/components/dashboard/IncomeSummary";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
 export default function DashboardPage() {
   return (
@@ -37,13 +38,19 @@ export default function DashboardPage() {
                 </div>
              </div>
              <div className="space-y-3">
-                <button className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors">
-                    <Plus className="w-4 h-4" />
+                <Button 
+                    variant="outline" 
+                    className="w-full h-auto py-2.5 text-sm font-medium border-gray-200 hover:bg-gray-50 text-gray-900 rounded-xl"
+                    leftIcon={<Plus className="w-4 h-4" />}
+                >
                     Новий звіт
-                </button>
-                <button className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors">
+                </Button>
+                <Button 
+                    variant="primary" 
+                    className="w-full h-auto py-2.5 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white shadow-none rounded-xl"
+                >
                     Скачати PDF
-                </button>
+                </Button>
              </div>
           </div>
 
@@ -72,9 +79,12 @@ export default function DashboardPage() {
                 </div>
 
                 <Link href="/dashboard/plans" className="w-full block">
-                    <button className="w-full py-3 rounded-xl bg-white text-gray-900 font-bold text-sm hover:bg-gray-100 transition-colors shadow-lg">
+                    <Button 
+                        variant="secondary"
+                        className="w-full font-bold text-sm bg-white text-gray-900 hover:bg-gray-100 border-none shadow-lg rounded-xl h-auto py-3"
+                    >
                         Отримати Pro
-                    </button>
+                    </Button>
                 </Link>
              </div>
           </div>

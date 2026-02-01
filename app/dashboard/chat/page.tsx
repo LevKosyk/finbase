@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { getAIResponse } from "@/app/actions/chat";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([
@@ -92,20 +94,21 @@ export default function ChatPage() {
             {/* Input Area */}
             <div className="p-4 border-t border-gray-100 bg-white relative z-10">
                 <form onSubmit={handleSubmit} className="relative">
-                    <input 
+                    <Input 
                         type="text" 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Напишіть ваше питання..." 
-                        className="w-full pl-6 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-medium text-gray-900 placeholder:text-gray-400"
+                        className="pr-14"
                     />
-                    <button 
+                    <Button 
                         type="submit" 
                         disabled={loading || !input.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:hover:bg-indigo-600 shadow-lg shadow-indigo-500/20"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 h-auto rounded-xl shadow-lg shadow-indigo-500/20"
+                        variant="primary"
                     >
                         <Send className="w-5 h-5" />
-                    </button>
+                    </Button>
                 </form>
             </div>
        </div>

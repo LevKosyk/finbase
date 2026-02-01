@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Star, Shield, Zap } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 
 export default function PlansPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -21,19 +22,21 @@ export default function PlansPage() {
 
         {/* Billing Toggle */}
         <div className="inline-flex bg-gray-100 p-1 rounded-full relative">
-            <button 
+            <Button 
                 onClick={() => setBillingCycle('monthly')}
-                className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${billingCycle === 'monthly' ? 'bg-white shadow-md text-gray-900' : 'text-gray-500'}`}
+                variant="ghost"
+                className={`px-6 py-2 rounded-full text-sm font-bold h-auto ${billingCycle === 'monthly' ? 'bg-white shadow-md text-gray-900' : 'text-gray-500 hover:bg-transparent'}`}
             >
                 Щомісяця
-            </button>
-            <button 
+            </Button>
+            <Button 
                 onClick={() => setBillingCycle('yearly')}
-                className={`px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-white shadow-md text-gray-900' : 'text-gray-500'}`}
+                variant="ghost"
+                className={`px-6 py-2 rounded-full text-sm font-bold h-auto flex items-center gap-2 ${billingCycle === 'yearly' ? 'bg-white shadow-md text-gray-900' : 'text-gray-500 hover:bg-transparent'}`}
             >
                 Щорічно
                 <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">-20%</span>
-            </button>
+            </Button>
         </div>
       </div>
 
@@ -50,9 +53,12 @@ export default function PlansPage() {
                     Ідеально для початківців, щоб спробувати сервіс.
                 </p>
             </div>
-            <button className="w-full py-3 rounded-xl border-2 border-gray-100 text-gray-700 font-bold mb-8 cursor-default bg-gray-50">
+            <Button 
+                variant="secondary"
+                className="w-full py-3 rounded-xl border-2 border-gray-100 text-gray-700 font-bold mb-8 cursor-default bg-gray-50 h-auto hover:bg-gray-50 hover:border-gray-100 shadow-none pointer-events-none"
+            >
                 Ваш поточний план
-            </button>
+            </Button>
             <ul className="space-y-4">
                 <li className="flex items-start gap-3 text-sm text-gray-600">
                     <CheckCircle2 className="w-5 h-5 text-gray-400 shrink-0" />
@@ -99,12 +105,12 @@ export default function PlansPage() {
                     </p>
                 </div>
 
-                <button 
+                <Button 
                     onClick={() => handleSubscribe('Pro')}
-                    className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold mb-8 hover:bg-blue-500 shadow-lg shadow-blue-600/30 transition-all"
+                    className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold mb-8 hover:bg-blue-500 shadow-lg shadow-blue-600/30 h-auto"
                 >
                     Отримати Pro
-                </button>
+                </Button>
 
                 <ul className="space-y-4">
                     <li className="flex items-start gap-3 text-sm text-gray-300">

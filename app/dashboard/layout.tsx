@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 
 export default function DashboardLayout({
   children,
@@ -64,13 +65,14 @@ export default function DashboardLayout({
         </nav>
 
         <div className="p-4 border-t border-gray-100">
-           <button 
+           <Button 
+             variant="ghost"
              onClick={handleLogout}
-             className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 w-full font-medium transition-colors"
+             className="w-full justify-start px-4 text-red-600 hover:text-red-700 hover:bg-red-50"
+             leftIcon={<LogOut className="w-5 h-5" />}
             >
-            <LogOut className="w-5 h-5" />
             Вийти
-          </button>
+          </Button>
         </div>
       </aside>
 
@@ -82,9 +84,14 @@ export default function DashboardLayout({
             </div>
             <span className="text-lg font-bold text-gray-900">Finbase</span>
          </div>
-         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-gray-600">
+         <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)} 
+            className="p-2 text-gray-600 h-auto"
+         >
             {sidebarOpen ? <X /> : <Menu />}
-         </button>
+         </Button>
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -110,13 +117,14 @@ export default function DashboardLayout({
             <Settings className="w-5 h-5" />
             Налаштування
           </Link>
-           <button 
+            <Button 
+             variant="ghost"
              onClick={handleLogout}
-             className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 w-full font-medium transition-colors mt-4"
+             className="w-full justify-start px-4 text-red-600 hover:text-red-700 hover:bg-red-50 mt-4 h-auto py-3"
+             leftIcon={<LogOut className="w-5 h-5" />}
             >
-            <LogOut className="w-5 h-5" />
             Вийти
-          </button>
+          </Button>
         </nav>
       </div>
 

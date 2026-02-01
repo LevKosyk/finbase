@@ -98,12 +98,10 @@ export default function AuthLayout({
             {Array.from({ length: totalSteps }).map((_, index) => (
               <div
                 key={index}
-                className={`h-1 rounded-full transition-all duration-500 ${
+                className={`h-1.5 rounded-full transition-all duration-500 ${
                   index + 1 === currentStep
-                    ? 'w-8 bg-white'
-                    : index + 1 < currentStep
-                    ? 'w-8 bg-white/60'
-                    : 'w-2 bg-white/30'
+                    ? 'w-12 bg-white'
+                    : 'w-1.5 bg-white/40'
                 }`}
               ></div>
             ))}

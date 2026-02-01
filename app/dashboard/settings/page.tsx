@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { getUser } from "@/app/actions/auth";
 import { updateFOPSettings, updateProfile } from "@/app/actions/settings";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
@@ -98,20 +100,20 @@ export default function SettingsPage() {
 
       {/* Top Navigation Tabs */}
       <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-1.5 shadow-sm border border-gray-200/60 mb-8 inline-flex flex-wrap gap-1 sticky top-4 z-10 supports-[backdrop-filter]:bg-white/60">
-        {tabs.map((tab) => (
-            <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    activeTab === tab.id 
-                        ? 'bg-white text-[var(--fin-primary)] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] ring-1 ring-black/5' 
-                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-            >
-                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'fill-[var(--fin-primary)]/10' : ''}`} />
-                {tab.label}
-            </button>
-        ))}
+        {tabs.map((tab) =>                <Button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    variant="ghost"
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 h-auto shadow-none ${
+                        activeTab === tab.id 
+                            ? 'bg-white text-[var(--fin-primary)] shadow-[0_2px_8px_-2px_rgba(0,0,0,0.1)] ring-1 ring-black/5 hover:bg-white' 
+                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50 bg-transparent'
+                    }`}
+                >
+                    <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'fill-[var(--fin-primary)]/10' : ''}`} />
+                    {tab.label}
+                </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm p-8 min-h-[500px] relative overflow-hidden">
@@ -139,30 +141,33 @@ export default function SettingsPage() {
 
                 <form onSubmit={handleProfileSave} className="space-y-6">
                     <div className="grid grid-cols-1 gap-6">
-                        <div className="space-y-2">
-                             <label className="text-sm font-semibold text-gray-700">Повне ім'я</label>
-                             <input 
-                                type="text" 
-                                value={userData?.name || ""} 
-                                onChange={(e) => setUserData({...userData, name: e.target.value})}
-                                className="w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all" 
-                             />
-                        </div>
+                        <Input 
+                            label="Повне ім'я"
+                            type="text" 
+                            value={userData?.name || ""} 
+                            onChange={(e) => setUserData({...userData, name: e.target.value})}
+                            placeholder="Введіть ваше ім'я"
+                        />
                     </div>
 
-                    <div className="space-y-2">
-                         <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-400" />
-                            Email адреса
-                         </label>
-                         <input type="email" value={userData?.email || ""} disabled className="w-full px-5 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-500 cursor-not-allowed" />
-                    </div>
+                    <Input 
+                        label="Email адреса"
+                        type="email" 
+                        value={userData?.email || ""} 
+                        disabled 
+                        leftIcon={<Mail className="w-4 h-4" />}
+                    />
 
                     <div className="pt-6">
-                        <button type="submit" disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-[var(--fin-primary)] text-white font-bold rounded-xl hover:bg-[var(--fin-secondary)] hover:shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 disabled:opacity-50">
-                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        <Button 
+                            type="submit" 
+                            disabled={saving} 
+                            isLoading={saving}
+                            leftIcon={<Save className="w-5 h-5" />}
+                            size="lg"
+                        >
                             Зберегти зміни
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
@@ -178,41 +183,36 @@ export default function SettingsPage() {
                 <form onSubmit={handleFOPSave} className="space-y-8">
                      {/* Basic Info */}
                      <div className="space-y-6">
-                        <div className="space-y-2">
-                             <label className="text-sm font-semibold text-gray-700">Повна назва ФОП</label>
-                             <input 
-                                type="text" 
-                                placeholder="ФОП Петренко Петро Петрович" 
-                                value={fopData.legalName || ""}
-                                onChange={(e) => setFopData({...fopData, legalName: e.target.value})}
-                                className="w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all" 
-                             />
-                        </div>
+                        <Input 
+                            label="Повна назва ФОП"
+                            type="text" 
+                            placeholder="ФОП Петренко Петро Петрович" 
+                            value={fopData.legalName || ""}
+                            onChange={(e) => setFopData({...fopData, legalName: e.target.value})}
+                        />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-gray-400" />
-                                    ІПН (РНОКПП)
-                                </label>
-                                <input 
-                                    type="text" 
-                                    placeholder="1234567890" 
-                                    maxLength={10} 
-                                    value={fopData.ipn || ""}
-                                    onChange={(e) => setFopData({...fopData, ipn: e.target.value})}
-                                    className="font-mono w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all" 
-                                />
-                            </div>
+                            <Input 
+                                label="ІПН (РНОКПП)"
+                                type="text" 
+                                placeholder="1234567890" 
+                                maxLength={10} 
+                                value={fopData.ipn || ""}
+                                onChange={(e) => setFopData({...fopData, ipn: e.target.value})}
+                                leftIcon={<FileText className="w-4 h-4" />}
+                                className="font-mono"
+                            />
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700">Група оподаткування</label>
                                 <select 
                                     value={fopData.group || 3}
                                     onChange={(e) => setFopData({...fopData, group: e.target.value})}
-                                    className="w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer bg-white"
+                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
                                 >
+                                    <option value="1">1 група (до 167 МЗП)</option>
+                                    <option value="2">2 група (до 834 МЗП)</option>
                                     <option value="3">3 група (5%)</option>
-                                    <option value="2">2 група (фіксований)</option>
+                                    <option value="4">4 група (Загальна система)</option>
                                 </select>
                             </div>
                         </div>
@@ -226,16 +226,13 @@ export default function SettingsPage() {
                             <MapPin className="w-5 h-5 text-[var(--fin-primary)]" />
                             Адреса реєстрації
                         </h3>
-                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Повна адреса</label>
-                            <input 
-                                type="text" 
-                                placeholder="02000, м. Київ, вул..." 
-                                value={fopData.address || ""}
-                                onChange={(e) => setFopData({...fopData, address: e.target.value})}
-                                className="w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all" 
-                            />
-                         </div>
+                        <Input 
+                            label="Повна адреса"
+                            type="text" 
+                            placeholder="02000, м. Київ, вул..." 
+                            value={fopData.address || ""}
+                            onChange={(e) => setFopData({...fopData, address: e.target.value})}
+                        />
                      </div>
 
                      <hr className="border-gray-100" />
@@ -247,22 +244,27 @@ export default function SettingsPage() {
                             КВЕДи
                         </h3>
                         <div className="space-y-2">
-                             <label className="text-sm font-semibold text-gray-700">Список КВЕДів</label>
-                             <textarea 
+                            <label className="text-sm font-semibold text-gray-700">Список КВЕДів</label>
+                            <textarea 
                                 rows={3} 
                                 placeholder="62.01, 73.11..." 
                                 value={fopData.kveds || ""}
                                 onChange={(e) => setFopData({...fopData, kveds: e.target.value})}
-                                className="w-full px-5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
-                             ></textarea>
+                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
+                            ></textarea>
                         </div>
                      </div>
 
                      <div className="pt-6">
-                        <button type="submit" disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-[var(--fin-primary)] text-white font-bold rounded-xl hover:bg-[var(--fin-secondary)] hover:shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 disabled:opacity-50">
-                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        <Button 
+                            type="submit" 
+                            disabled={saving} 
+                            isLoading={saving}
+                            leftIcon={<Save className="w-5 h-5" />}
+                            size="lg"
+                        >
                             Зберегти дані ФОП
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

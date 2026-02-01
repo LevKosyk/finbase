@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Plus, Filter, Search, ArrowUpRight, MoreHorizontal, Download, Calendar, ArrowDownLeft } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 const transactions = [
   { id: 1, source: "Розробка сайту", date: "01 Лют 2026", amount: 3000, type: "service", status: "completed", iconBg: "bg-blue-100", iconColor: "text-blue-600" },
@@ -24,14 +26,19 @@ export default function IncomePage() {
            <p className="text-gray-500 text-lg">Всі ваші фінансові надходження під контролем</p>
         </div>
         <div className="flex gap-3">
-            <button className="flex items-center gap-2 bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
-                <Download className="w-5 h-5" />
+            <Button 
+                variant="secondary"
+                className="font-bold border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm text-gray-700 bg-white"
+                leftIcon={<Download className="w-5 h-5" />}
+            >
                 <span className="hidden sm:inline">Експорт</span>
-            </button>
-            <button className="flex items-center gap-2 bg-[var(--fin-primary)] text-white px-6 py-3 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5">
-                <Plus className="w-5 h-5" />
+            </Button>
+            <Button 
+                className="font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5"
+                leftIcon={<Plus className="w-5 h-5" />}
+            >
                 Додати дохід
-            </button>
+            </Button>
         </div>
       </div>
 
@@ -72,24 +79,32 @@ export default function IncomePage() {
         {/* Toolbar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div className="relative flex-1 max-w-lg">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input 
+                <Input 
                     type="text" 
                     placeholder="Пошук операцій..." 
-                    className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-[var(--fin-primary)] focus:bg-white transition-all outline-none font-medium"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    leftIcon={<Search className="w-5 h-5 text-gray-400" />}
+                    className="border-none focus:bg-white"
                 />
             </div>
             <div className="flex gap-2 shrink-0">
-                <button className="flex items-center gap-2 px-5 py-3.5 bg-gray-50 text-gray-700 font-bold text-sm rounded-2xl hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200">
-                    <Calendar className="w-4 h-4" />
+                <Button 
+                    variant="secondary"
+                    size="sm"
+                    className="bg-gray-50 border-transparent hover:border-gray-200 text-gray-700 font-bold h-auto py-3.5"
+                    leftIcon={<Calendar className="w-4 h-4" />}
+                >
                     Лютий 2026
-                </button>
-                <button className="flex items-center gap-2 px-5 py-3.5 bg-gray-50 text-gray-700 font-bold text-sm rounded-2xl hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200">
-                    <Filter className="w-4 h-4" />
+                </Button>
+                <Button 
+                    variant="secondary"
+                    size="sm"
+                    className="bg-gray-50 border-transparent hover:border-gray-200 text-gray-700 font-bold h-auto py-3.5"
+                    leftIcon={<Filter className="w-4 h-4" />}
+                >
                     Фільтри
-                </button>
+                </Button>
             </div>
         </div>
 
@@ -138,18 +153,24 @@ export default function IncomePage() {
                         <span className="font-extrabold text-gray-900 text-lg">
                             +{tx.amount} ₴
                         </span>
-                        <button className="p-2 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors opacity-0 group-hover:opacity-100">
+                        <Button 
+                            variant="ghost" 
+                            className="p-2 h-auto text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-xl opacity-0 group-hover:opacity-100"
+                        >
                             <MoreHorizontal className="w-5 h-5" />
-                        </button>
+                        </Button>
                     </div>
                 </div>
             ))}
         </div>
 
         <div className="mt-8 flex justify-center">
-            <button className="text-sm font-bold text-gray-500 hover:text-[var(--fin-primary)] transition-colors px-6 py-2 rounded-xl hover:bg-gray-50">
+            <Button 
+                variant="ghost" 
+                className="text-sm font-bold text-gray-500 hover:text-[var(--fin-primary)] hover:bg-gray-50 h-auto py-2 px-6"
+            >
                 Завантажити ще
-            </button>
+            </Button>
         </div>
 
       </div>

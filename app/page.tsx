@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import AIHelper from "@/components/AIHelper";
+import { Button } from "@/components/ui/Button";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -72,12 +73,14 @@ export default function HomePage() {
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+          <Button 
+            variant="ghost"
+            size="sm"
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors h-auto shadow-none"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X /> : <Menu />}
-          </button>
+          </Button>
         </div>
 
         {/* Mobile Menu */}
@@ -453,16 +456,16 @@ export default function HomePage() {
       <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
 
       {/* AI Helper Floating Button */}
-      <button
+      <Button
         onClick={() => setIsAIHelperOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 bg-[var(--fin-primary)] text-white rounded-full shadow-xl shadow-blue-500/30 hover:bg-[var(--fin-secondary)] hover:scale-105 transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 h-auto bg-[var(--fin-primary)] text-white rounded-full shadow-xl shadow-blue-500/30 hover:bg-[var(--fin-secondary)] hover:scale-105 transition-all duration-300 group"
       >
         <div className="relative">
            <div className="absolute inset-0 bg-white blur-md opacity-20 rounded-full animate-pulse"></div>
            <Bot className="w-6 h-6 relative z-10" />
         </div>
         <span className="font-semibold pr-1">AI-помічник</span>
-      </button>
+      </Button>
 
 
     </main>
