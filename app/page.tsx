@@ -421,7 +421,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li><Link href="/terms" className="hover:text-[var(--fin-primary)]">Умови використання</Link></li>
                 <li><Link href="/privacy" className="hover:text-[var(--fin-primary)]">Політика конфіденційності</Link></li>
-                <li><Link href="/contact" className="hover:text-[var(--fin-primary)]">Контакти</Link></li>
+                <li><Link href="/contacts" className="hover:text-[var(--fin-primary)]">Контакти</Link></li>
               </ul>
             </div>
             

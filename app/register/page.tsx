@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AIHelper from "@/components/AIHelper";
+import { CheckCircle2 } from "lucide-react";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const router = useRouter();
 
   const signUpWithGoogle = async () => {
@@ -97,7 +99,7 @@ export default function RegisterPage() {
             className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
             title="Apple"
           >
-             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+             <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.21-.93 3.69-.93 2.52.12 3.69 1.48 4.22 2.2-3.79 2.33-2.85 7.6 1.45 9.07-.63 1.54-1.5 3.01-2.94 4.39-1.5 1.48-1.54 1.47-1.54 1.47zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.16 2.29-1.93 4.27-3.74 4.25z" />
              </svg>
           </button>
@@ -136,9 +138,33 @@ export default function RegisterPage() {
                 />
             </div>
             
+            <div className="flex items-start gap-3">
+                <button
+                    type="button"
+                    onClick={() => setAgreedToTerms(!agreedToTerms)}
+                    className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        agreedToTerms 
+                            ? 'bg-[var(--fin-primary)] border-[var(--fin-primary)]' 
+                            : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                >
+                    {agreedToTerms && <CheckCircle2 className="w-4 h-4 text-white" />}
+                </button>
+                <label className="text-sm text-gray-600 leading-relaxed">
+                    Я погоджуюсь з{" "}
+                    <Link href="/terms" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                        умовами використання
+                    </Link>
+                    {" "}та{" "}
+                    <Link href="/privacy" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                        політикою конфіденційності
+                    </Link>
+                </label>
+            </div>
+            
             <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !agreedToTerms}
                 className="w-full bg-[var(--fin-primary)] text-white font-bold py-4 rounded-xl hover:bg-[var(--fin-secondary)] shadow-lg shadow-blue-500/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
                 {loading ? "Реєстрація..." : "Створити акаунт"}
@@ -153,10 +179,6 @@ export default function RegisterPage() {
                 </Link>
             </p>
         </div>
-        
-        <p className="text-xs text-center text-gray-400 mt-4 leading-relaxed">
-            Реєструючись, ви погоджуєтесь з нашими <Link href="/terms" className="underline hover:text-gray-600">умовами використання</Link> та <Link href="/privacy" className="underline hover:text-gray-600">політикою конфіденційності</Link>.
-        </p>
       </div>
       <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
 

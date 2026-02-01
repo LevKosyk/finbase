@@ -10,6 +10,9 @@ import {
   Maximize2,
   Minimize2
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 
 interface Message {
   id: string;
@@ -94,12 +97,14 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
                     </p>
                 </div>
             </div>
-            <button 
+            <Button 
+                variant="ghost"
+                size="sm"
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="!p-2 !h-auto"
             >
                 <X className="w-5 h-5" />
-            </button>
+            </Button>
         </div>
 
         {/* Messages */}
@@ -116,13 +121,17 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
                     }`}>
                         {msg.role === 'assistant' ? <Bot className="w-5 h-5" /> : <User className="w-4 h-4" />}
                     </div>
-                    <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
-                        msg.role === 'user' 
-                            ? 'bg-[var(--fin-primary)] text-white rounded-tr-sm' 
-                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
-                    }`}>
+                    <Card 
+                        variant={msg.role === 'user' ? 'white' : 'white'}
+                        padding="sm"
+                        className={`max-w-[75%] !rounded-2xl text-sm shadow-sm ${
+                            msg.role === 'user' 
+                                ? 'bg-[var(--fin-primary)] text-white !rounded-tr-sm !border-none' 
+                                : 'text-gray-800 !rounded-tl-sm'
+                        }`}
+                    >
                         {msg.content}
-                    </div>
+                    </Card>
                 </div>
             ))}
             
@@ -131,13 +140,13 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
                      <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-white text-[var(--fin-primary)] border border-gray-100 shadow-sm">
                         <Bot className="w-5 h-5" />
                     </div>
-                     <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
+                    <Card variant="white" padding="sm" className="!rounded-2xl !rounded-tl-sm shadow-sm">
                         <div className="flex gap-1 h-4 items-center">
                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                             <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
                         </div>
-                    </div>
+                    </Card>
                 </div>
             )}
             <div ref={messagesEndRef} />
@@ -147,21 +156,22 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
         <div className="p-4 border-t border-gray-100 bg-white">
             <form 
                 onSubmit={handleSend}
-                className="relative flex items-center gap-2"
+                className="flex items-center gap-2"
             >
-                <input
+                <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Запитайте щось..."
-                    className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:bg-white transition-all outline-none"
+                    className="flex-1 !bg-gray-100 !border-none"
                 />
-                <button 
+                <Button 
                     type="submit"
                     disabled={!input.trim() || isTyping}
-                    className="p-3 bg-[var(--fin-primary)] text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--fin-secondary)] transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                    size="md"
+                    className="!px-4"
+                    rightIcon={<SendHorizontal className="w-5 h-5" />}
                 >
-                    <SendHorizontal className="w-5 h-5" />
-                </button>
+                </Button>
             </form>
             <div className="text-center mt-2">
                     <p className="text-[10px] text-gray-400">

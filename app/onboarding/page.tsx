@@ -26,6 +26,13 @@ export default function OnboardingPage() {
     <AuthLayout
       title="Налаштування профілю"
       subtitle="Вкажіть дані вашого ФОП, щоб ми могли автоматизувати розрахунки."
+      currentStep={1}
+      totalSteps={3}
+      stepContent={{
+        icon: <Check className="w-24 h-24 text-white" />,
+        title: "Майже готово!",
+        description: "Заповніть базову інформацію про ваш ФОП, щоб ми могли налаштувати персоналізовані розрахунки податків та звітності."
+      }}
     >
       <div className="space-y-6">
         <div>
