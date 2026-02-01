@@ -15,7 +15,8 @@ import {
   TrendingUp,
   PieChart,
   Wallet,
-  Bot
+  Bot,
+  Linkedin
 } from "lucide-react";
 import { useState } from "react";
 import AIHelper from "@/components/AIHelper";
@@ -120,7 +121,7 @@ export default function HomePage() {
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/app/register"
+              href="/register"
               className="w-full sm:w-auto inline-flex items-center justify-center h-14 px-8 rounded-full bg-[var(--fin-primary)] text-white text-lg font-semibold shadow-xl shadow-blue-600/20 hover:bg-[var(--fin-secondary)] hover:shadow-2xl hover:shadow-blue-600/30 transition-all transform hover:-translate-y-1"
             >
               Спробувати безкоштовно
@@ -294,7 +295,7 @@ export default function HomePage() {
                 </li>
               </ul>
               <Link 
-                href="/app/register"
+                href="/register"
                 className="w-full py-4 rounded-xl border-2 border-gray-200 text-gray-700 font-bold hover:border-[var(--fin-primary)] hover:text-[var(--fin-primary)] transition-colors text-center"
               >
                 Почати безкоштовно
@@ -332,7 +333,7 @@ export default function HomePage() {
                 </li>
               </ul>
               <Link 
-                href="/app/register"
+                href="/register"
                 className="w-full py-4 rounded-xl bg-[var(--fin-primary)] text-white font-bold hover:bg-[var(--fin-secondary)] shadow-lg shadow-blue-500/20 transition-all text-center"
               >
                 Спробувати Pro
@@ -373,18 +374,17 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gray-900 -z-10"></div>
-        <div className="absolute inset-0 bg-[var(--fin-primary)]/20 -z-10 bg-blend-overlay"></div>
+      <section className="py-24 relative overflow-hidden bg-white">
+        <div className="absolute inset-0 bg-blue-50/50 -z-10"></div>
         
-        <div className="container mx-auto px-6 text-center text-white">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Готові навести лад у справах?</h2>
-          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">Готові навести лад у справах?</h2>
+          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
             Приєднуйтесь до підприємців, які вже заощаджують свій час з Finbase.
           </p>
           <Link
-            href="/app/register"
-            className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-white text-gray-900 text-lg font-bold hover:bg-gray-100 transition-colors"
+            href="/register"
+            className="inline-flex items-center justify-center gap-2 h-16 px-10 rounded-full bg-[var(--fin-primary)] text-white text-lg font-bold hover:bg-[var(--fin-secondary)] shadow-xl shadow-blue-500/20 hover:shadow-2xl transition-all hover:-translate-y-1"
           >
             Почати зараз <ArrowRight className="w-5 h-5" />
           </Link>
@@ -439,10 +439,12 @@ export default function HomePage() {
               &copy; {new Date().getFullYear()} Finbase. Усі права захищено.
             </p>
             <div className="flex gap-4">
-              {/* Social icons placeholders */}
-              <div className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"></div>
-              <div className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"></div>
-              <div className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"></div>
+              <Link href="https://linkedin.com/company/finbase" target="_blank" className="w-10 h-10 rounded-full bg-gray-200 hover:bg-[#0077b5] hover:text-white transition-all flex items-center justify-center text-gray-600">
+                <Linkedin className="w-5 h-5" />
+              </Link>
+              <div className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors flex items-center justify-center">
+                 {/* Other social icons can go here */}
+              </div>
             </div>
           </div>
         </div>

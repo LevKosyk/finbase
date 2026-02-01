@@ -4,11 +4,13 @@ import AuthLayout from "@/components/AuthLayout";
 import Link from "next/link";
 import { MoveRight } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,9 +23,7 @@ export default function LoginPage() {
     if (error) {
       alert("Помилка входу: " + error.message);
     } else {
-      // Login successful, redirect handled by middleware or client side check usually, 
-      // but for now we can just alert or redirect.
-      window.location.href = "/";
+      router.push("/");
     }
   };
 
@@ -34,7 +34,27 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/api/auth/callback`,
       },
     });
-    if (error) console.log("Ошибка входа:", error.message);
+    if (error) console.log("Ошибка входа Google:", error.message);
+  };
+
+  const signInWithFacebook = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+    if (error) console.log("Ошибка входа Facebook:", error.message);
+  };
+
+  const signInWithApple = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+    if (error) console.log("Ошибка входа Apple:", error.message);
   };
 
   return (
@@ -43,17 +63,41 @@ export default function LoginPage() {
       subtitle="Увійдіть у свій акаунт, щоб продовжити роботу."
     >
       <div className="space-y-6">
-        <button
-          onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-700 font-semibold py-4 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-        >
-          <img 
-            src="https://www.svgrepo.com/show/475656/google-color.svg" 
-            alt="Google" 
-            className="w-5 h-5" 
-          />
-          Продовжити з Google
-        </button>
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            onClick={signInWithGoogle}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Google"
+          >
+            <img 
+              src="https://www.svgrepo.com/show/475656/google-color.svg" 
+              alt="Google" 
+              className="w-6 h-6" 
+            />
+          </button>
+          <button
+            onClick={signInWithFacebook}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Facebook"
+          >
+             <img 
+              src="https://www.svgrepo.com/show/475647/facebook-color.svg" 
+              alt="Facebook" 
+              className="w-6 h-6" 
+            />
+          </button>
+          <button
+            onClick={signInWithApple}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Apple"
+          >
+             <img 
+              src="https://www.svgrepo.com/show/303108/apple-black-logo.svg" 
+              alt="Apple" 
+              className="w-5 h-5" 
+            />
+          </button>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -105,6 +149,16 @@ export default function LoginPage() {
             </p>
         </div>
       </div>
+      {process.env.NODE_ENV === "development" && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <button
+            onClick={() => router.push("/")}
+            className="bg-red-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-red-600 transition-colors"
+          >
+            DEV: Skip to Dashboard
+          </button>
+        </div>
+      )}
     </AuthLayout>
   );
 }

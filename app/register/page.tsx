@@ -3,35 +3,61 @@ import { supabase } from "@/lib/supabaseClient";
 import AuthLayout from "@/components/AuthLayout";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import AIHelper from "@/components/AIHelper";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
+  const router = useRouter();
 
   const signUpWithGoogle = async () => {
     // For OAuth, sign in and sign up are the same flow
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/onboarding`, // Redirect to onboarding after signup
+        redirectTo: encodeURI(`${window.location.origin}/onboarding`), // Redirect to onboarding after signup
       },
     });
-    if (error) console.log("Ошибка регистрации:", error.message);
+    if (error) console.log("Ошибка регистрации Google:", error.message);
+  };
+
+  const signUpWithFacebook = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: {
+        redirectTo: encodeURI(`${window.location.origin}/onboarding`),
+      },
+    });
+    if (error) console.log("Ошибка регистрации Facebook:", error.message);
+  };
+
+  const signUpWithApple = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: encodeURI(`${window.location.origin}/onboarding`),
+      },
+    });
+    if (error) console.log("Ошибка регистрации Apple:", error.message);
   };
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/onboarding`,
+        emailRedirectTo: encodeURI(`${window.location.origin}/onboarding`),
       },
     });
     setLoading(false);
     if (error) {
       alert("Помилка реєстрації: " + error.message);
+    } else if (data.session) {
+      router.push("/onboarding");
     } else {
       alert("Перевірте вашу пошту для підтвердження реєстрації!");
     }
@@ -43,17 +69,41 @@ export default function RegisterPage() {
       subtitle="Почніть керувати своїми фінансами ефективно вже сьогодні."
     >
       <div className="space-y-6">
-        <button
-          onClick={signUpWithGoogle}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-700 font-semibold py-4 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-        >
-          <img 
-            src="https://www.svgrepo.com/show/475656/google-color.svg" 
-            alt="Google" 
-            className="w-5 h-5" 
-          />
-          Зареєструватися через Google
-        </button>
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            onClick={signUpWithGoogle}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Google"
+          >
+            <img 
+              src="https://www.svgrepo.com/show/475656/google-color.svg" 
+              alt="Google" 
+              className="w-6 h-6" 
+            />
+          </button>
+          <button
+            onClick={signUpWithFacebook}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Facebook"
+          >
+             <img 
+              src="https://www.svgrepo.com/show/475647/facebook-color.svg" 
+              alt="Facebook" 
+              className="w-6 h-6" 
+            />
+          </button>
+          <button
+            onClick={signUpWithApple}
+            className="flex items-center justify-center py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+            title="Apple"
+          >
+             <img 
+              src="https://www.svgrepo.com/show/303108/apple-black-logo.svg" 
+              alt="Apple" 
+              className="w-5 h-5" 
+            />
+          </button>
+        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
@@ -110,6 +160,18 @@ export default function RegisterPage() {
             Реєструючись, ви погоджуєтесь з нашими <Link href="/terms" className="underline hover:text-gray-600">умовами використання</Link> та <Link href="/privacy" className="underline hover:text-gray-600">політикою конфіденційності</Link>.
         </p>
       </div>
+      <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
+
+      {process.env.NODE_ENV === "development" && (
+        <div className="fixed bottom-4 left-4 z-50">
+          <button
+            onClick={() => router.push("/onboarding")}
+            className="bg-red-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:bg-red-600 transition-colors"
+          >
+            DEV: Skip to Onboarding
+          </button>
+        </div>
+      )}
     </AuthLayout>
   );
 }
