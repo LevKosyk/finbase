@@ -5,7 +5,12 @@ import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
-export default function DashboardPage() {
+import { getIncomes, getIncomeStats } from "@/app/actions/income";
+
+export default async function DashboardPage() {
+  const stats = await getIncomeStats();
+  const recentIncomes = await getIncomes();
+
   return (
     <div className="pb-12">
       {/* 1. Greeting & Profile */}
@@ -15,12 +20,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Income Chart - 2 cols */}
         <div className="lg:col-span-2 h-[400px]">
-            <IncomeSummary />
+            <IncomeSummary initialData={stats} />
         </div>
         
         {/* Recent Transactions - 1 col */}
         <div className="lg:col-span-1 h-[400px]">
-            <RecentTransactions />
+            <RecentTransactions initialData={recentIncomes} />
         </div>
       </div>
 

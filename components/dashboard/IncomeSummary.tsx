@@ -13,18 +13,17 @@ import { useState } from 'react';
 import { ChevronDown, TrendingUp, Calendar } from 'lucide-react';
 import { Button } from "@/components/ui/Button";
 
-const data = [
-  { name: 'Січ', income: 4000 },
-  { name: 'Лют', income: 3000 },
-  { name: 'Бер', income: 2000 },
-  { name: 'Кві', income: 2780 },
-  { name: 'Тра', income: 1890 },
-  { name: 'Чер', income: 2390 },
-  { name: 'Лип', income: 3490 },
-];
+interface IncomeSummaryProps {
+    initialData: {
+        total: number;
+        change: number;
+        chartData: { name: string; income: number }[];
+    }
+}
 
-export default function IncomeSummary() {
+export default function IncomeSummary({ initialData }: IncomeSummaryProps) {
   const [period, setPeriod] = useState('Цей рік');
+  const { total, change, chartData } = initialData;
 
   return (
     <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm h-full flex flex-col hover:shadow-md transition-shadow duration-300">
@@ -37,9 +36,9 @@ export default function IncomeSummary() {
                  <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide">Загальний дохід</h2>
             </div>
             <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-extrabold text-gray-900">12 450 ₴</span>
+                <span className="text-4xl font-extrabold text-gray-900">{total.toLocaleString('uk-UA')} ₴</span>
                 <span className="text-sm font-bold text-green-600 bg-green-100/50 px-2 py-1 rounded-lg">
-                    +12.5%
+                    +{change}%
                 </span>
             </div>
         </div>
@@ -55,7 +54,7 @@ export default function IncomeSummary() {
 
       <div className="flex-1 w-full min-h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barSize={40}>
+          <BarChart data={chartData} barSize={40}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
             <XAxis 
                 dataKey="name" 
@@ -75,10 +74,10 @@ export default function IncomeSummary() {
                 }}
             />
             <Bar dataKey="income" radius={[12, 12, 12, 12]}>
-              {data.map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell 
                     key={`cell-${index}`} 
-                    fill={index === data.length - 1 ? 'url(#colorGradient)' : '#f3f4f6'} 
+                    fill={index === chartData.length - 1 ? 'url(#colorGradient)' : '#f3f4f6'} 
                     className="transition-all duration-300 hover:opacity-80"
                 />
               ))}

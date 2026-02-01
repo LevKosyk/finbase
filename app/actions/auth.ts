@@ -2,6 +2,76 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+
+export async function login(formData: FormData) {
+  const supabase = await createClient();
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+export async function signup(formData: FormData) {
+  const supabase = await createClient();
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const origin = (await headers()).get("origin");
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${origin}/api/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true, message: "Check email to continue sign in process" };
+}
+
+export async function logout() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/login");
+}
+
+export async function signInWithOAuth(provider: 'google' | 'facebook' | 'apple') {
+    const supabase = await createClient();
+    const origin = (await headers()).get("origin");
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+            redirectTo: `${origin}/api/auth/callback`,
+        },
+    });
+
+    if (error) {
+        return { error: error.message };
+    }
+
+    if (data.url) {
+        redirect(data.url);
+    }
+}
+
 
 export async function syncUser() {
   const supabase = await createClient();

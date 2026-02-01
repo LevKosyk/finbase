@@ -1,62 +1,23 @@
 "use client";
-import { supabase } from "@/lib/supabaseClient";
+import { login, signInWithOAuth } from "@/app/actions/auth";
+import { useTransition } from "react";
 import AuthLayout from "@/components/AuthLayout";
 import Link from "next/link";
-import { MoveRight } from "lucide-react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  const handleLogin = (formData: FormData) => {
+    startTransition(async () => {
+      const result = await login(formData);
+      if (result?.error) {
+        alert(result.error);
+      }
     });
-    setLoading(false);
-    if (error) {
-      alert("Помилка входу: " + error.message);
-    } else {
-      router.push("/dashboard");
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
-    if (error) console.log("Ошибка входа Google:", error.message);
-  };
-
-  const signInWithFacebook = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "facebook",
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
-    if (error) console.log("Ошибка входа Facebook:", error.message);
-  };
-
-  const signInWithApple = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "apple",
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    });
-    if (error) console.log("Ошибка входа Apple:", error.message);
   };
 
   return (
@@ -67,10 +28,11 @@ export default function LoginPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-3 gap-3">
           <Button
-            onClick={signInWithGoogle}
+            onClick={() => startTransition(() => signInWithOAuth('google'))}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Google"
+            type="button"
           >
             <img 
               src="https://www.svgrepo.com/show/475656/google-color.svg" 
@@ -79,10 +41,11 @@ export default function LoginPage() {
             />
           </Button>
           <Button
-            onClick={signInWithFacebook}
+            onClick={() => startTransition(() => signInWithOAuth('facebook'))}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Facebook"
+            type="button"
           >
              <img 
               src="https://www.svgrepo.com/show/475647/facebook-color.svg" 
@@ -91,10 +54,11 @@ export default function LoginPage() {
             />
           </Button>
           <Button
-            onClick={signInWithApple}
+            onClick={() => startTransition(() => signInWithOAuth('apple'))}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Apple"
+            type="button"
           >
              <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.21-.93 3.69-.93 2.52.12 3.69 1.48 4.22 2.2-3.79 2.33-2.85 7.6 1.45 9.07-.63 1.54-1.5 3.01-2.94 4.39-1.5 1.48-1.54 1.47-1.54 1.47zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.16 2.29-1.93 4.27-3.74 4.25z" />
@@ -111,12 +75,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form action={handleLogin} className="space-y-4">
             <Input
                 label="Email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="name@company.com"
             />
@@ -128,9 +91,8 @@ export default function LoginPage() {
                     </Link>
                 </div>
                 <Input
+                    name="password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     required
                     placeholder="••••••••"
                 />
@@ -138,8 +100,8 @@ export default function LoginPage() {
             
             <Button
                 type="submit"
-                disabled={loading}
-                isLoading={loading}
+                disabled={isPending}
+                isLoading={isPending}
                 size="lg"
                 className="w-full"
             >
