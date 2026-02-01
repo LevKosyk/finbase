@@ -1,17 +1,33 @@
 "use client";
+
 import AuthLayout from "@/components/AuthLayout";
 import { useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { syncUser } from "@/app/actions/auth";
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleFinish = async () => {
+    setLoading(true);
+    try {
+        await syncUser();
+        router.push("/dashboard");
+    } catch (e) {
+        console.error(e);
+        // Navigate anyway to avoid blocking
+        router.push("/dashboard");
+    }
+  };
 
   return (
     <AuthLayout
       title="Налаштування профілю"
       subtitle="Вкажіть дані вашого ФОП, щоб ми могли автоматизувати розрахунки."
     >
-      <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+      <div className="space-y-6">
         <div>
            <label className="block text-sm font-medium text-gray-700 mb-2">Як вас звати?</label>
            <input 
@@ -52,13 +68,16 @@ export default function OnboardingPage() {
         </div>
         
         <button
-          onClick={() => alert("Дані збережено! Перехід до дашборду...")}
-          className="w-full flex items-center justify-center gap-2 bg-[var(--fin-primary)] text-white font-bold py-4 rounded-xl hover:bg-[var(--fin-secondary)] shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5"
+          onClick={handleFinish}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 bg-[var(--fin-primary)] text-white font-bold py-4 rounded-xl hover:bg-[var(--fin-secondary)] shadow-lg shadow-blue-500/20 transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
         >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>
           Завершити налаштування
           <ArrowRight className="w-5 h-5" />
+          </>}
         </button>
-      </form>
+      </div>
     </AuthLayout>
   );
 }

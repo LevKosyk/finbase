@@ -463,6 +463,8 @@ export default function HomePage() {
         </div>
         <span className="font-semibold pr-1">AI-помічник</span>
       </button>
+
+
     </main>
   );
 }
