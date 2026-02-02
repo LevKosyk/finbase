@@ -11,11 +11,13 @@ import {
   X,
   UserCircle,
   PieChart,
-  Sparkles
+  Sparkles,
+  Bot
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import AIHelper from "@/components/AIHelper";
 
 export default function DashboardLayout({
   children,
@@ -23,6 +25,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -134,6 +137,20 @@ export default function DashboardLayout({
             {children}
         </div>
       </main>
+
+      <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
+
+      {/* AI Helper Floating Button */}
+      <Button
+        onClick={() => setIsAIHelperOpen(true)}
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 h-auto bg-[var(--fin-primary)] text-white rounded-full shadow-xl shadow-blue-500/30 hover:bg-[var(--fin-secondary)] hover:scale-105 transition-all duration-300 group"
+      >
+        <div className="relative">
+           <div className="absolute inset-0 bg-white blur-md opacity-20 rounded-full animate-pulse"></div>
+           <Bot className="w-6 h-6 relative z-10" />
+        </div>
+        <span className="font-semibold pr-1">AI-помічник</span>
+      </Button>
     </div>
   );
 }
