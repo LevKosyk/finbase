@@ -28,7 +28,7 @@ export default function LoginPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-3 gap-3">
           <Button
-            onClick={() => startTransition(() => signInWithOAuth('google'))}
+            onClick={() => startTransition(async () => { await signInWithOAuth('google') })}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Google"
@@ -41,7 +41,7 @@ export default function LoginPage() {
             />
           </Button>
           <Button
-            onClick={() => startTransition(() => signInWithOAuth('facebook'))}
+            onClick={() => startTransition(async () => { await signInWithOAuth('facebook') })}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Facebook"
@@ -54,7 +54,7 @@ export default function LoginPage() {
             />
           </Button>
           <Button
-            onClick={() => startTransition(() => signInWithOAuth('apple'))}
+            onClick={() => startTransition(async () => { await signInWithOAuth('apple') })}
             variant="secondary"
             className="w-full flex items-center justify-center !px-0"
             title="Apple"

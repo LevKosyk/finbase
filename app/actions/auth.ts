@@ -92,6 +92,8 @@ export async function syncUser() {
         id: user.id, // Use Supabase ID as Prisma ID for consistency
         email: user.email,
         name: user.user_metadata.full_name || user.user_metadata.name || "User",
+        firstName: user.user_metadata.full_name ? user.user_metadata.full_name.split(' ')[0] : (user.user_metadata.name ? user.user_metadata.name.split(' ')[0] : "User"),
+        lastName: user.user_metadata.full_name ? user.user_metadata.full_name.split(' ').slice(1).join(' ') : (user.user_metadata.name ? user.user_metadata.name.split(' ').slice(1).join(' ') : ""),
         avatarUrl: user.user_metadata.avatar_url,
       },
     });
@@ -111,7 +113,7 @@ export async function getUser() {
     try {
         const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            include: { settings: true, subscription: true }
+            include: { settings: true, subscription: true, notifications: true }
         });
         return dbUser;
     } catch (e) {

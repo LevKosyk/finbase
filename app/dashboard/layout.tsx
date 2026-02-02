@@ -9,15 +9,13 @@ import {
   LogOut, 
   Menu, 
   X,
-  UserCircle,
   PieChart,
-  Sparkles,
-  Bot
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import AIHelper from "@/components/AIHelper";
 
 export default function DashboardLayout({
   children,
@@ -25,7 +23,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -36,34 +34,69 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 fixed h-full z-20">
-        <div className="p-6 border-b border-gray-100 flex items-center gap-3">
-          <div className="w-8 h-8 bg-[var(--fin-primary)] rounded-lg flex items-center justify-center text-white">
-            <Wallet className="w-5 h-5" />
+      <aside 
+        className={`hidden md:flex flex-col bg-white border-r border-gray-200 fixed h-full z-20 transition-all duration-300 ease-in-out ${
+          isCollapsed ? 'w-20' : 'w-64'
+        }`}
+      >
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-3 relative">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 bg-[var(--fin-primary)] rounded-lg flex items-center justify-center text-white shrink-0">
+              <Wallet className="w-5 h-5" />
+            </div>
+            {!isCollapsed && (
+              <span className="text-xl font-bold text-gray-900 animate-in fade-in duration-300">Finbase</span>
+            )}
           </div>
-          <span className="text-xl font-bold text-gray-900">Finbase</span>
+          
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 z-50 text-xs"
+          >
+            {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-[var(--fin-primary)] font-medium">
-            <LayoutDashboard className="w-5 h-5" />
-            Дашборд
+        <nav className="flex-1 p-4 space-y-2 overflow-hidden">
+          <Link 
+            href="/dashboard" 
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+              isCollapsed ? 'justify-center' : ''
+            } bg-blue-50 text-[var(--fin-primary)]`}
+            title="Дашборд"
+          >
+            <LayoutDashboard className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Дашборд</span>}
           </Link>
-          <Link href="/dashboard/income" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
-            <Wallet className="w-5 h-5" />
-            Доходи
+          <Link 
+            href="/dashboard/income" 
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title="Доходи"
+          >
+            <Wallet className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Доходи</span>}
           </Link>
-          <Link href="/dashboard/statistics" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
-            <PieChart className="w-5 h-5" />
-            Статистика
+          <Link 
+            href="/dashboard/statistics" 
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors ${
+               isCollapsed ? 'justify-center' : ''
+            }`}
+            title="Статистика"
+          >
+            <PieChart className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Статистика</span>}
           </Link>
-          <Link href="/dashboard/chat" className="flex items-center gap-3 px-4 py-3 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 font-bold transition-colors">
-            <Sparkles className="w-5 h-5" />
-            AI Помічник
-          </Link>
-          <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors">
-            <Settings className="w-5 h-5" />
-            Налаштування
+          <Link 
+            href="/dashboard/settings" 
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium transition-colors ${
+               isCollapsed ? 'justify-center' : ''
+            }`}
+             title="Налаштування"
+          >
+            <Settings className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span>Налаштування</span>}
           </Link>
         </nav>
 
@@ -71,10 +104,10 @@ export default function DashboardLayout({
            <Button 
              variant="ghost"
              onClick={handleLogout}
-             className="w-full justify-start px-4 text-red-600 hover:text-red-700 hover:bg-red-50"
+             className={`justify-start px-4 text-red-600 hover:text-red-700 hover:bg-red-50 ${isCollapsed ? 'justify-center px-2' : ''}`}
              leftIcon={<LogOut className="w-5 h-5" />}
             >
-            Вийти
+            {!isCollapsed && "Вийти"}
           </Button>
         </div>
       </aside>
@@ -132,25 +165,15 @@ export default function DashboardLayout({
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 p-4 md:p-8 mt-16 md:mt-0">
+      <main 
+        className={`flex-1 p-4 md:p-8 mt-16 md:mt-0 transition-all duration-300 ease-in-out ${
+            isCollapsed ? 'md:ml-20' : 'md:ml-64'
+        }`}
+      >
         <div className="max-w-7xl mx-auto">
             {children}
         </div>
       </main>
-
-      <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
-
-      {/* AI Helper Floating Button */}
-      <Button
-        onClick={() => setIsAIHelperOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 h-auto bg-[var(--fin-primary)] text-white rounded-full shadow-xl shadow-blue-500/30 hover:bg-[var(--fin-secondary)] hover:scale-105 transition-all duration-300 group"
-      >
-        <div className="relative">
-           <div className="absolute inset-0 bg-white blur-md opacity-20 rounded-full animate-pulse"></div>
-           <Bot className="w-6 h-6 relative z-10" />
-        </div>
-        <span className="font-semibold pr-1">AI-помічник</span>
-      </Button>
     </div>
   );
 }

@@ -17,12 +17,10 @@ export async function GET(req: NextRequest) {
     where: { email: user.email! },
     update: {
       name: user.user_metadata.full_name || user.email,
-      googleId: user.id,
     },
     create: {
       email: user.email!,
       name: user.user_metadata.full_name || user.email,
-      googleId: user.id,
     },
   });
 

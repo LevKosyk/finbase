@@ -10,13 +10,29 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String?
+  firstName String?
+  lastName  String?
   avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   settings  FOPSettings?
+  notifications NotificationSettings?
   incomes   Income[]
+  expenses  Expense[]
   subscription Subscription?
+}
+
+model NotificationSettings {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailNews      Boolean @default(true)
+  monthlyReport  Boolean @default(true)
+  reportChannel  String  @default("email") // "email" or "sms"
+
+  updatedAt DateTime @updatedAt
 }
 
 model FOPSettings {
@@ -27,7 +43,11 @@ model FOPSettings {
   legalName String?
   ipn       String?
   group     Int      @default(3) // 2 or 3
-  address   String?
+  address     String?
+  city        String?
+  street      String?
+  houseNumber String?
+  zipCode     String?
   kveds     String?  // Comma separated list
   
   createdAt DateTime @default(now())
@@ -72,4 +92,18 @@ model AiUsage {
   count     Int      @default(0)
   
   @@unique([userId, date])
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount    Float
+  category  String
+  date      DateTime
+  description String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

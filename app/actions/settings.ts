@@ -9,6 +9,10 @@ export async function updateFOPSettings(data: {
   ipn?: string;
   group?: number;
   address?: string;
+  city?: string;
+  street?: string;
+  houseNumber?: string;
+  zipCode?: string;
   kveds?: string;
 }) {
   const supabase = await createClient();
@@ -38,8 +42,40 @@ export async function updateFOPSettings(data: {
   }
 }
 
+export async function updateNotificationSettings(data: {
+  emailNews: boolean;
+  monthlyReport: boolean;
+  reportChannel: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  try {
+    await prisma.notificationSettings.upsert({
+        where: { userId: user.id },
+        update: { ...data },
+        create: {
+            userId: user.id,
+            ...data
+        }
+    });
+    revalidatePath("/dashboard/settings");
+    return { success: true };
+  } catch (e) {
+      console.error(e);
+      return { error: "Failed to update notifications" };
+  }
+}
+
 export async function updateProfile(data: {
     name?: string;
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string;
     email?: string; // Changing email is complex (auth sync), skipping for now or just DB update
     phone?: string;
 }) {
@@ -54,7 +90,10 @@ export async function updateProfile(data: {
         await prisma.user.update({
             where: { id: user.id },
             data: {
-                name: data.name
+                name: data.name,
+                firstName: data.firstName,
+                lastName: data.lastName,
+                avatarUrl: data.avatarUrl
             }
         });
         revalidatePath("/dashboard/settings");

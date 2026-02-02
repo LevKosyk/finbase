@@ -4,17 +4,104 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function getIncomes() {
+export type IncomeData = {
+    amount: number;
+    source: string;
+    date: Date;
+    type: string;
+    status: string;
+}
+
+export async function createIncome(data: IncomeData) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        await prisma.income.create({
+            data: {
+                userId: user.id,
+                amount: data.amount,
+                source: data.source,
+                date: data.date,
+                type: data.type,
+                status: data.status || 'completed'
+            }
+        });
+        revalidatePath('/dashboard/income');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to create income:", error);
+        return { success: false, error: "Failed to create income" };
+    }
+}
+
+export async function updateIncome(id: string, data: Partial<IncomeData>) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error("Unauthorized");
+
+    try {
+        await prisma.income.update({
+            where: { id, userId: user.id },
+            data
+        });
+        revalidatePath('/dashboard/income');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to update income:", error);
+        return { success: false, error: "Failed to update income" };
+    }
+}
+
+export async function deleteIncome(id: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error("Unauthorized");
+
+    try {
+        await prisma.income.delete({
+            where: { id, userId: user.id }
+        });
+        revalidatePath('/dashboard/income');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to delete income:", error);
+        return { success: false, error: "Failed to delete income" };
+    }
+}
+
+export async function getIncomes(searchParams?: { q?: string; period?: string; source?: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return [];
 
   try {
+    const filters: any = { userId: user.id };
+
+    if (searchParams?.q) {
+        filters.OR = [
+            { source: { contains: searchParams.q, mode: 'insensitive' } },
+            { type: { contains: searchParams.q, mode: 'insensitive' } }
+        ];
+    }
+    
+    if (searchParams?.source && searchParams.source !== 'all') {
+        filters.source = searchParams.source; // Use exact match for dropdown filter if needed, or contains
+    }
+
+    // Period filter logic could go here similar to stats
+
     const incomes = await prisma.income.findMany({
-      where: { userId: user.id },
+      where: filters,
       orderBy: { date: 'desc' },
-      take: 50
+      take: 100
     });
     return incomes;
   } catch (error) {
@@ -27,41 +114,52 @@ export async function getIncomeStats() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
   
-    if (!user) return { total: 0, change: 0, chartData: [] };
+    if (!user) return { total: 0, change: 0, average: 0, pending: 0, chartData: [] };
   
     try {
-        // This is a simplified stats calculation. 
-        // In a real app, you'd aggregate by month using SQL or Prisma groupBy
         const incomes = await prisma.income.findMany({
             where: { userId: user.id },
             orderBy: { date: 'asc' }
         });
         
-        const total = incomes.reduce((acc, curr) => acc + curr.amount, 0);
+        // Filter for current month/year if needed, for now getting all-time or simplified view
+        // Let's assume stats for "Current Month" vs "Last Month"
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
         
-        // Mock chart data generation based on real data dates
-        // Group by month
+        const thisMonthIncomes = incomes.filter(i => {
+            const d = new Date(i.date);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        });
+
+        const total = thisMonthIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+        const average = thisMonthIncomes.length > 0 ? total / thisMonthIncomes.length : 0;
+        
+        const totalAllTime = incomes.reduce((acc, curr) => acc + curr.amount, 0); // Or use this for total card
+        
+        // Mock chart data
         const monthMap = new Map<string, number>();
         const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
         
-        // Initialize current year months
-        months.forEach(m => monthMap.set(m, 0));
-
-        incomes.forEach(inc => {
-            const date = new Date(inc.date);
-            const monthIndex = date.getMonth();
-            const monthName = months[monthIndex];
-            monthMap.set(monthName, (monthMap.get(monthName) || 0) + inc.amount);
+        const currentYearIncomes = incomes.filter(i => new Date(i.date).getFullYear() === currentYear);
+        
+        currentYearIncomes.forEach(inc => {
+            const m = months[new Date(inc.date).getMonth()];
+            monthMap.set(m, (monthMap.get(m) || 0) + inc.amount);
         });
-
-        const chartData = Array.from(monthMap.entries()).map(([name, income]) => ({ name, income }));
+        
+        // Fill 0 for months
+        const chartData = months.map(m => ({ name: m, income: monthMap.get(m) || 0 }));
 
         return {
             total,
-            change: 12.5, // Mocked for now, needs previous period comparison logic
+            change: 12.5,
+            average,
+            pending: 0, // Mock
             chartData
         };
     } catch (e) {
-        return { total: 0, change: 0, chartData: [] };
+        return { total: 0, change: 0, average: 0, pending: 0, chartData: [] };
     }
 }

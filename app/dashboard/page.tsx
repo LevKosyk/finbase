@@ -1,99 +1,70 @@
-import GreetingSection from "@/components/dashboard/GreetingSection";
-import IncomeSummary from "@/components/dashboard/IncomeSummary";
-import RecentTransactions from "@/components/dashboard/RecentTransactions";
-import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-
-import { getIncomes, getIncomeStats } from "@/app/actions/income";
+import { getDashboardStats } from "@/app/actions/dashboard";
+import SummaryCards from "@/components/dashboard/SummaryCards";
+import FinancialChart from "@/components/dashboard/FinancialChart";
+import TaskList from "@/components/dashboard/TaskList";
+import AIWidget from "@/components/dashboard/AIWidget";
+import TaxStatusBlock from "@/components/dashboard/TaxStatusBlock";
+import { getUser } from "@/app/actions/auth";
 
 export default async function DashboardPage() {
-  const stats = await getIncomeStats();
-  const recentIncomes = await getIncomes();
+  const stats = await getDashboardStats();
+  const user = await getUser();
+
+  if (!stats) return <div>Loading...</div>;
+
+  const firstName = user?.firstName || user?.name || "User";
 
   return (
-    <div className="pb-12">
-      {/* 1. Greeting & Profile */}
-      <GreetingSection />
-
-      {/* 2. Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Income Chart - 2 cols */}
-        <div className="lg:col-span-2 h-[400px]">
-            <IncomeSummary initialData={stats} />
-        </div>
-        
-        {/* Recent Transactions - 1 col */}
-        <div className="lg:col-span-1 h-[400px]">
-            <RecentTransactions initialData={recentIncomes} />
-        </div>
+    <div className="pb-12 space-y-8 animate-in fade-in duration-500">
+      
+      {/* Header Section */}
+      <div className="flex justify-between items-end">
+         <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                Вітаємо, {firstName} 👋
+            </h1>
+            <p className="text-gray-500 mt-2 font-medium">Ось ваша фінансова картина на сьогодні.</p>
+         </div>
+         <div className="text-right hidden sm:block">
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">Сьогодні</p>
+            <p className="text-lg font-bold text-gray-900">{new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+         </div>
       </div>
 
-      {/* 3. Bottom Row - Reports & Plan */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Reports Card */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-             <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
-                    <FileText className="w-6 h-6" />
-                </div>
-                <div>
-                    <h3 className="font-bold text-gray-900">Звітність</h3>
-                    <p className="text-xs text-gray-500">Q1 2026</p>
-                </div>
-             </div>
-             <div className="space-y-3">
-                <Button 
-                    variant="outline" 
-                    className="w-full h-auto py-2.5 text-sm font-medium border-gray-200 hover:bg-gray-50 text-gray-900 rounded-xl"
-                    leftIcon={<Plus className="w-4 h-4" />}
-                >
-                    Новий звіт
-                </Button>
-                <Button 
-                    variant="primary" 
-                    className="w-full h-auto py-2.5 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white shadow-none rounded-xl"
-                >
-                    Скачати PDF
-                </Button>
-             </div>
-          </div>
+      {/* 1. Top Summary Cards */}
+      <SummaryCards stats={stats} />
 
-          {/* Plan Card */}
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 text-white shadow-lg overflow-hidden relative">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-             <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <p className="text-gray-400 text-xs font-bold uppercase tracking-wide">Ваш план</p>
-                        <h3 className="text-2xl font-bold mt-1">Free</h3>
-                    </div>
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold backdrop-blur-sm">
-                        Basic
-                    </span>
-                </div>
-                
-                <div className="space-y-2 mb-6">
-                    <div className="flex justify-between text-sm text-gray-300">
-                        <span>Ліміт доходів</span>
-                        <span>12/50</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 w-[24%] rounded-full"></div>
-                    </div>
-                </div>
-
-                <Link href="/dashboard/plans" className="w-full block">
-                    <Button 
-                        variant="secondary"
-                        className="w-full font-bold text-sm bg-white text-gray-900 hover:bg-gray-100 border-none shadow-lg rounded-xl h-auto py-3"
-                    >
-                        Отримати Pro
-                    </Button>
-                </Link>
-             </div>
+      {/* 2. Main Grid: Chart vs Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Financial Chart (2/3) */}
+          <FinancialChart data={stats.income.history} />
+          
+          {/* Right: Tax & AI (1/3) */}
+          <div className="flex flex-col gap-6 h-[400px]">
+              <div className="flex-1">
+                  <TaxStatusBlock stats={stats} />
+              </div>
+              <div className="flex-1">
+                  <AIWidget />
+              </div>
           </div>
       </div>
+
+      {/* 3. Bottom Row: Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TaskList />
+          
+           {/* Placeholder for future expansion or recent transactions list if needed */}
+           <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] p-8 text-white flex items-center justify-between relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-white/10 transition-colors"></div>
+                <div className="relative z-10 max-w-md">
+                    <h3 className="text-2xl font-bold mb-2">Все під контролем!</h3>
+                    <p className="text-gray-400">Ви успішно керуєте своїми фінансами. Не забувайте додавати нові доходи.</p>
+                </div>
+                {/* Could add a 'Add Income' button here conceptually */}
+           </div>
+      </div>
+
     </div>
   );
 }
