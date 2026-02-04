@@ -56,7 +56,7 @@ export default function AddIncomeModal() {
             </Button>
 
             {isOpen && (
-                <div className="fixed inset-0 z-50 flexItems center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setIsOpen(false)} />
                     
                     <div className="relative bg-white rounded-[2rem] w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 p-6 md:p-8">
@@ -78,7 +78,7 @@ export default function AddIncomeModal() {
                                         step="0.01"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="w-full text-3xl font-extrabold p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-[var(--fin-primary)] rounded-2xl outline-none transition-all text-gray-900 placeholder:text-gray-300"
+                                        className="w-full text-3xl font-extrabold p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-[var(--fin-primary)] rounded-2xl outline-none transition-all text-gray-900 placeholder:text-gray-900"
                                         placeholder="0.00"
                                         autoFocus
                                     />
@@ -94,7 +94,7 @@ export default function AddIncomeModal() {
                                     value={source}
                                     onChange={(e) => setSource(e.target.value)}
                                     placeholder="Напр. Upwork, Клієнт А"
-                                    className="w-full p-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium"
+                                    className="w-full p-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium placeholder:text-gray-400"
                                 />
                             </div>
 

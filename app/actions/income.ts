@@ -76,7 +76,16 @@ export async function deleteIncome(id: string) {
     }
 }
 
-export async function getIncomes(searchParams?: { q?: string; period?: string; source?: string }) {
+export async function getIncomes(searchParams?: { 
+    q?: string; 
+    period?: string; 
+    source?: string; 
+    type?: string;
+    startDate?: string;
+    endDate?: string;
+    minAmount?: string;
+    maxAmount?: string;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -92,11 +101,36 @@ export async function getIncomes(searchParams?: { q?: string; period?: string; s
         ];
     }
     
+    // Explicit filters
     if (searchParams?.source && searchParams.source !== 'all') {
-        filters.source = searchParams.source; // Use exact match for dropdown filter if needed, or contains
+        filters.source = searchParams.source;
     }
 
-    // Period filter logic could go here similar to stats
+    if (searchParams?.type && searchParams.type !== 'all') {
+        filters.type = searchParams.type;
+    }
+
+    // Date Range
+    if (searchParams?.startDate || searchParams?.endDate) {
+        filters.date = {};
+        if (searchParams.startDate) {
+            filters.date.gte = new Date(searchParams.startDate);
+        }
+        if (searchParams.endDate) {
+            filters.date.lte = new Date(searchParams.endDate);
+        }
+    }
+
+    // Amount Range
+    if (searchParams?.minAmount || searchParams?.maxAmount) {
+        filters.amount = {};
+        if (searchParams.minAmount) {
+            filters.amount.gte = parseFloat(searchParams.minAmount);
+        }
+        if (searchParams.maxAmount) {
+            filters.amount.lte = parseFloat(searchParams.maxAmount);
+        }
+    }
 
     const incomes = await prisma.income.findMany({
       where: filters,

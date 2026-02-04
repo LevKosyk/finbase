@@ -15,10 +15,15 @@ export default async function IncomePage({
   }) {
     const resolvedSearchParams = await searchParams;
     const q = typeof resolvedSearchParams?.q === 'string' ? resolvedSearchParams.q : undefined;
+    const type = typeof resolvedSearchParams?.type === 'string' ? resolvedSearchParams.type : undefined;
+    const startDate = typeof resolvedSearchParams?.startDate === 'string' ? resolvedSearchParams.startDate : undefined;
+    const endDate = typeof resolvedSearchParams?.endDate === 'string' ? resolvedSearchParams.endDate : undefined;
+    const minAmount = typeof resolvedSearchParams?.minAmount === 'string' ? resolvedSearchParams.minAmount : undefined;
+    const maxAmount = typeof resolvedSearchParams?.maxAmount === 'string' ? resolvedSearchParams.maxAmount : undefined;
     
     // Fetch data in parallel
     const [incomes, stats] = await Promise.all([
-        getIncomes({ q }),
+        getIncomes({ q, type, startDate, endDate, minAmount, maxAmount }),
         getIncomeStats()
     ]);
 

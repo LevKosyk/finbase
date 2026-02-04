@@ -5,6 +5,22 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { sendVerificationCode } from "@/app/actions/email";
+
+function getSafeOrigin(unsafeOrigin: string | null) {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  if (!unsafeOrigin) return "http://localhost:3000";
+  // Basic ASCII check, if it contains non-ascii, fallback to localhost or strip
+  // eslint-disable-next-line no-control-regex
+  if (/[^\x00-\x7F]/.test(unsafeOrigin)) {
+    console.warn("Detected non-ASCII origin, falling back to localhost:", unsafeOrigin);
+    return "http://localhost:3000";
+  }
+  return unsafeOrigin;
+}
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -20,29 +36,91 @@ export async function login(formData: FormData) {
     return { error: error.message };
   }
 
+  // Sync user on login just in case
+  await syncUser();
+
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
+
+
 export async function signup(formData: FormData) {
-  const supabase = await createClient();
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const origin = (await headers()).get("origin");
+  
+  const headersList = await headers();
+  const origin = getSafeOrigin(headersList.get("origin"));
 
-  const { data, error } = await supabase.auth.signUp({
+  // 1. Create Admin Client
+  let supabaseAdmin;
+  try {
+      supabaseAdmin = createAdminClient();
+  } catch (e: any) {
+      console.error("Admin Client Error:", e.message);
+      return { error: "Server Configuration Error: " + e.message };
+  }
+
+  // 2. Generate Link/OTP manually (prevents default email)
+  // We use 'signUp' but with autoConfirm off? No, generateLink is better as it gives us the code directly.
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'signup',
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/api/auth/callback`,
-    },
+        redirectTo: `${origin}/api/auth/callback`,
+    }
+  });
+
+  if (error) {
+    console.error("Signup error (generateLink):", error);
+    // Handle "User already registered" gracefully
+    if (error.message.includes("already registered")) {
+         return { error: "User already exists" };
+    }
+    return { error: error.message };
+  }
+
+  // 3. Extract the OTP code
+  // generateLink returns properties like: action_link, email_otp, hashed_token, etc.
+  // We need email_otp to send to the user.
+  const otpCode = data.properties?.email_otp;
+  
+  if (!otpCode) {
+      console.error("No OTP returned from generateLink");
+      return { error: "Failed to generate verification code" };
+  }
+
+  // 4. Send Custom Email via Resend
+  const emailResult = await sendVerificationCode(email, otpCode);
+
+  if (emailResult.error) {
+      console.error("Failed to send custom email:", emailResult.error);
+      return { error: "Failed to send verification email: " + emailResult.error };
+  }
+
+  return { success: true, message: "Verification code sent to email" };
+}
+
+export async function verifyEmail(email: string, code: string) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'signup'
   });
 
   if (error) {
     return { error: error.message };
   }
 
-  return { success: true, message: "Check email to continue sign in process" };
+  if (data.user) {
+    await syncUser();
+    return { success: true };
+  }
+
+  return { error: "Verification failed" };
 }
 
 export async function logout() {
@@ -54,7 +132,8 @@ export async function logout() {
 
 export async function signInWithOAuth(provider: 'google' | 'facebook' | 'apple') {
     const supabase = await createClient();
-    const origin = (await headers()).get("origin");
+    const headersList = await headers();
+    const origin = getSafeOrigin(headersList.get("origin"));
     
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -86,7 +165,6 @@ export async function syncUser() {
       where: { email: user.email },
       update: {
         avatarUrl: user.user_metadata.avatar_url,
-        // Update name if changed? Maybe keep DB as source of truth.
       },
       create: {
         id: user.id, // Use Supabase ID as Prisma ID for consistency
@@ -115,6 +193,20 @@ export async function getUser() {
             where: { id: user.id },
             include: { settings: true, subscription: true, notifications: true }
         });
+        
+        // If user is in Supabase but not in DB (e.g. verified but sync failed initially), try syncing now
+        if (!dbUser) {
+            const syncResult = await syncUser();
+            if (syncResult.user) {
+                // Re-fetch with relations if needed, or just return basic user
+                 const newDbUser = await prisma.user.findUnique({
+                    where: { id: user.id },
+                    include: { settings: true, subscription: true, notifications: true }
+                });
+                return newDbUser;
+            }
+        }
+
         return dbUser;
     } catch (e) {
         console.error(e);

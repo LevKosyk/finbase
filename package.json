@@ -11,6 +11,8 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
+    "@react-email/components": "^1.0.6",
+    "@react-email/render": "^2.0.4",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.3",
     "clsx": "^2.1.1",
@@ -22,6 +24,7 @@
     "react-circular-progressbar": "^2.2.0",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
+    "resend": "^6.9.1",
     "tailwind-merge": "^3.4.0",
     "use-debounce": "^10.1.0"
   },

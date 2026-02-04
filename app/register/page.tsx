@@ -1,11 +1,12 @@
 "use client";
 
-import { signup, signInWithOAuth } from "@/app/actions/auth";
+import { signup, signInWithOAuth, verifyEmail } from "@/app/actions/auth";
+import { SocialAuth } from "@/components/auth/SocialAuth";
 import { useState, useTransition } from "react";
 import AuthLayout from "@/components/AuthLayout";
 import Link from "next/link";
 import AIHelper from "@/components/AIHelper";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
@@ -15,27 +16,40 @@ export default function RegisterPage() {
   const [isPending, startTransition] = useTransition();
   const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  
+  const [step, setStep] = useState<'register' | 'verify'>('register');
+  const [emailForVerify, setEmailForVerify] = useState("");
 
   const handleRegister = (formData: FormData) => {
+    const email = formData.get("email") as string;
     startTransition(async () => {
       const result = await signup(formData);
       if (result?.error) {
         alert("Помилка реєстрації: " + result.error);
       } else if (result?.success) {
-         // Optionally redirect to onboarding or show success message, action handles redirect to verify? 
-         // Actually signup with email usually requires verification.
-         // If auto-confirm is off, they sort of need to wait.
-         // For now, let's assume standard flow or maybe just alert.
-         alert(result.message);
+         setEmailForVerify(email);
+         setStep('verify');
       }
     });
   };
 
+  const handleVerify = (formData: FormData) => {
+    const code = formData.get("code") as string;
+    startTransition(async () => {
+        const result = await verifyEmail(emailForVerify, code);
+        if (result?.error) {
+            alert("Помилка підтвердження: " + result.error);
+        } else if (result?.success) {
+            router.push("/onboarding");
+        }
+    });
+  }
+
   return (
     <AuthLayout
-      title="Створити акаунт"
-      subtitle="Почніть керувати своїми фінансами ефективно вже сьогодні."
-      currentStep={1}
+      title={step === 'register' ? "Створити акаунт" : "Підтвердження Email"}
+      subtitle={step === 'register' ? "Почніть керувати своїми фінансами ефективно вже сьогодні." : `Ми відправили код підтвердження на ${emailForVerify}`}
+      currentStep={step === 'register' ? 1 : 2}
       totalSteps={2}
       stepContent={{
         icon: <CheckCircle2 className="w-24 h-24 text-white" />,
@@ -44,114 +58,119 @@ export default function RegisterPage() {
       }}
     >
       <div className="space-y-6">
-        <div className="grid grid-cols-3 gap-3">
-          <Button
-            onClick={() => startTransition(async () => { await signInWithOAuth('google') })}
-            variant="secondary"
-            className="w-full flex items-center justify-center !px-0"
-            title="Google"
-            type="button"
-          >
-            <img 
-              src="https://www.svgrepo.com/show/475656/google-color.svg" 
-              alt="Google" 
-              className="w-6 h-6" 
-            />
-          </Button>
-          <Button
-            onClick={() => startTransition(async () => { await signInWithOAuth('facebook') })}
-            variant="secondary"
-            className="w-full flex items-center justify-center !px-0"
-            title="Facebook"
-            type="button"
-          >
-             <img 
-              src="https://www.svgrepo.com/show/475647/facebook-color.svg" 
-              alt="Facebook" 
-              className="w-6 h-6" 
-            />
-          </Button>
-          <Button
-            onClick={() => startTransition(async () => { await signInWithOAuth('apple') })}
-            variant="secondary"
-            className="w-full flex items-center justify-center !px-0"
-            title="Apple"
-            type="button"
-          >
-             <svg className="w-6 h-6 text-gray-900" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.74 1.18 0 2.21-.93 3.69-.93 2.52.12 3.69 1.48 4.22 2.2-3.79 2.33-2.85 7.6 1.45 9.07-.63 1.54-1.5 3.01-2.94 4.39-1.5 1.48-1.54 1.47-1.54 1.47zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.16 2.29-1.93 4.27-3.74 4.25z" />
-             </svg>
-          </Button>
-        </div>
+        {step === 'register' && (
+            <>
+            <SocialAuth />
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-400">або через email</span>
-          </div>
-        </div>
-
-        <form action={handleRegister} className="space-y-4">
-            <Input
-                label="Email"
-                type="email"
-                name="email"
-                required
-                placeholder="name@company.com"
-            />
-            <Input
-                label="Пароль"
-                type="password"
-                name="password"
-                required
-                placeholder="••••••••"
-            />
-            
-            <div className="flex items-start gap-3">
-                <button
-                    type="button"
-                    onClick={() => setAgreedToTerms(!agreedToTerms)}
-                    className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                        agreedToTerms 
-                            ? 'bg-[var(--fin-primary)] border-[var(--fin-primary)]' 
-                            : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                >
-                    {agreedToTerms && <CheckCircle2 className="w-4 h-4 text-white" />}
-                </button>
-                <label className="text-sm text-gray-600 leading-relaxed">
-                    Я погоджуюсь з{" "}
-                    <Link href="/terms" className="text-[var(--fin-primary)] font-semibold hover:underline">
-                        умовами використання
-                    </Link>
-                    {" "}та{" "}
-                    <Link href="/privacy" className="text-[var(--fin-primary)] font-semibold hover:underline">
-                        політикою конфіденційності
-                    </Link>
-                </label>
+            <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-200" />
             </div>
-            
-            <Button
-                type="submit"
-                disabled={isPending || !agreedToTerms}
-                isLoading={isPending}
-                size="lg"
-                className="w-full"
-            >
-                Створити акаунт
-            </Button>
-        </form>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-400">або через email</span>
+            </div>
+            </div>
 
-        <div className="text-center">
-            <p className="text-gray-500">
-                Вже маєте акаунт?{" "}
-                <Link href="/login" className="text-[var(--fin-primary)] font-bold hover:underline">
-                    Увійти
-                </Link>
-            </p>
-        </div>
+            <form action={handleRegister} className="space-y-4">
+                <Input
+                    label="Email"
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="name@company.com"
+                />
+                <Input
+                    label="Пароль"
+                    type="password"
+                    name="password"
+                    required
+                    placeholder="••••••••"
+                />
+                
+                <div className="flex items-start gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setAgreedToTerms(!agreedToTerms)}
+                        className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                            agreedToTerms 
+                                ? 'bg-[var(--fin-primary)] border-[var(--fin-primary)]' 
+                                : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                    >
+                        {agreedToTerms && <CheckCircle2 className="w-4 h-4 text-white" />}
+                    </button>
+                    <label className="text-sm text-gray-600 leading-relaxed">
+                        Я погоджуюсь з{" "}
+                        <Link href="/terms" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                            умовами використання
+                        </Link>
+                        {" "}та{" "}
+                        <Link href="/privacy" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                            політикою конфіденційності
+                        </Link>
+                    </label>
+                </div>
+                
+                <Button
+                    type="submit"
+                    disabled={isPending || !agreedToTerms}
+                    isLoading={isPending}
+                    size="lg"
+                    className="w-full"
+                >
+                    Створити акаунт
+                </Button>
+            </form>
+
+            <div className="text-center">
+                <p className="text-gray-500">
+                    Вже маєте акаунт?{" "}
+                    <Link href="/login" className="text-[var(--fin-primary)] font-bold hover:underline">
+                        Увійти
+                    </Link>
+                </p>
+            </div>
+            </>
+        )}
+
+        {step === 'verify' && (
+            <form action={handleVerify} className="space-y-6">
+                 <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3 text-sm text-blue-700">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+                    <p>Перевірте вашу пошту <strong>{emailForVerify}</strong> та введіть код підтвердження нижче.</p>
+                </div>
+
+                <Input
+                    label="Код підтвердження"
+                    type="text"
+                    name="code"
+                    required
+                    placeholder="123456"
+                    className="text-center text-2xl tracking-widest"
+                    autoComplete="one-time-code"
+                />
+                
+                <Button
+                    type="submit"
+                    disabled={isPending}
+                    isLoading={isPending}
+                    size="lg"
+                    className="w-full"
+                >
+                    Підтвердити <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+
+                <div className="text-center">
+                    <button 
+                        type="button"
+                        onClick={() => setStep('register')}
+                        className="text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1 mx-auto"
+                    >
+                        <RefreshCw className="w-3 h-3" /> Змінити email
+                    </button>
+                </div>
+            </form>
+        )}
       </div>
       <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />
 
