@@ -21,7 +21,7 @@ export default function IncomeChart({ data }: IncomeChartProps) {
     const [chartType, setChartType] = useState<'area' | 'bar'>('area');
 
     return (
-        <div className="bg-white p-6 md:p-8 rounded-[24px] border border-gray-100 shadow-sm flex flex-col h-[400px]">
+        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col h-[400px] hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-xl font-bold text-gray-900">Динаміка доходів</h3>

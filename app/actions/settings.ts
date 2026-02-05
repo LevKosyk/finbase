@@ -45,6 +45,7 @@ export async function updateFOPSettings(data: {
 export async function updateNotificationSettings(data: {
   emailNews: boolean;
   monthlyReport: boolean;
+  weeklyGovReport?: boolean;
   reportChannel: string;
 }) {
   const supabase = await createClient();

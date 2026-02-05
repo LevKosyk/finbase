@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { Bot } from "lucide-react";
 
 export default function GlobalAI() {
-  const { isAIHelperOpen, openAIHelper, closeAIHelper } = useUI();
+  const { isAIHelperOpen, openAIHelper, closeAIHelper, initialMessage } = useUI();
 
   return (
     <>
-      <AIHelper isOpen={isAIHelperOpen} onClose={closeAIHelper} />
+      <AIHelper isOpen={isAIHelperOpen} onClose={closeAIHelper} initialMessage={initialMessage} />
       
       <Button
-        onClick={openAIHelper}
+        onClick={() => openAIHelper()}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 h-auto bg-[var(--fin-primary)] text-white rounded-full shadow-xl shadow-blue-500/30 hover:bg-[var(--fin-secondary)] hover:scale-105 transition-all duration-300 group"
       >
         <div className="relative">

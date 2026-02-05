@@ -49,6 +49,7 @@ model NotificationSettings {
 
   emailNews      Boolean @default(true)
   monthlyReport  Boolean @default(true)
+  weeklyGovReport Boolean @default(false)
   reportChannel  String  @default("email") // "email" or "sms"
 
   updatedAt DateTime @updatedAt
@@ -125,4 +126,6 @@ model Expense {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
 }

@@ -61,7 +61,7 @@ function KPICard({ title, amount, change, icon, color, isExpense }: any) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-lg transition-shadow duration-300">
+        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] hover:shadow-xl transition-all duration-300 group">
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-3 rounded-2xl ${bgColors[color]}`}>
                     {icon}

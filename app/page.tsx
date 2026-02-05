@@ -21,6 +21,7 @@ import {
 import { useState } from "react";
 import AIHelper from "@/components/AIHelper";
 import { Button } from "@/components/ui/Button";
+import { motion } from "framer-motion";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -101,28 +102,53 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
         {/* Background Elements */}
-        <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-blue-50 to-transparent -z-10" />
+        <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ duration: 1 }}
+            className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-blue-50 to-transparent -z-10" 
+        />
         <div className="absolute -top-20 -right-20 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl -z-10" />
         <div className="absolute top-40 -left-20 w-72 h-72 bg-indigo-400/10 rounded-full blur-3xl -z-10" />
 
         <div className="container mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[var(--fin-primary)] text-xs font-bold uppercase tracking-wide mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[var(--fin-primary)] text-xs font-bold uppercase tracking-wide mb-8"
+          >
             <span className="w-2 h-2 rounded-full bg-[var(--fin-primary)] animate-pulse"></span>
             Для ФОП 3 групи
-          </div>
+          </motion.div>
           
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.1]">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.1]"
+          >
             Ваша бухгалтерія <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--fin-primary)] to-[var(--fin-info)]">
               проста як ніколи
             </span>
-          </h1>
+          </motion.h1>
           
-          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed"
+          >
             Повний контроль над податками та звітністю. Забудьте про Excel та складні сервіси. Ми зробили все за вас.
-          </p>
+          </motion.p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          >
             <Link
               href="/register"
               className="w-full sm:w-auto inline-flex items-center justify-center h-14 px-8 rounded-full bg-[var(--fin-primary)] text-white text-lg font-semibold shadow-xl shadow-blue-600/20 hover:bg-[var(--fin-secondary)] hover:shadow-2xl hover:shadow-blue-600/30 transition-all transform hover:-translate-y-1"
@@ -135,9 +161,14 @@ export default function HomePage() {
             >
               Як це працює
             </Link>
-          </div>
+          </motion.div>
 
-          <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm font-medium text-gray-500">
+          <motion.div 
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             transition={{ delay: 0.8, duration: 1 }}
+             className="mt-16 flex flex-wrap justify-center gap-8 text-sm font-medium text-gray-500"
+          >
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-[var(--fin-success)]" />
               <span>Швидка реєстрація</span>
@@ -150,7 +181,7 @@ export default function HomePage() {
               <CheckCircle2 className="w-5 h-5 text-[var(--fin-success)]" />
               <span>Безпека даних</span>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -228,39 +259,62 @@ export default function HomePage() {
       <section id="how-it-works" className="py-24 bg-[var(--fin-primary)] text-white overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="container mx-auto px-6 relative z-10">
-          <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Як це працює?</h2>
             <p className="text-blue-100 text-lg max-w-2xl mx-auto">
               Три прості кроки до повного порядку у фінансах
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            <div className="text-center relative">
+            <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="text-center relative"
+            >
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 1
               </div>
               <h3 className="text-xl font-bold mb-3">Реєстрація</h3>
               <p className="text-blue-100">Створіть акаунт та вкажіть базові дані про ваш ФОП.</p>
-            </div>
+            </motion.div>
             <div className="hidden md:block absolute top-10 left-[20%] w-[20%] h-0.5 bg-gradient-to-r from-white/10 to-white/40"></div>
             
-            <div className="text-center relative">
+            <motion.div 
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="text-center relative"
+            >
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 2
               </div>
               <h3 className="text-xl font-bold mb-3">Внесення доходів</h3>
               <p className="text-blue-100">Додавайте суми надходжень у міру їх отримання.</p>
-            </div>
+            </motion.div>
             <div className="hidden md:block absolute top-10 right-[20%] w-[20%] h-0.5 bg-gradient-to-r from-white/40 to-white/10"></div>
 
-            <div className="text-center relative">
+            <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="text-center relative"
+            >
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 3
               </div>
               <h3 className="text-xl font-bold mb-3">Звіти готові</h3>
               <p className="text-blue-100">Система сама розрахує податки та сформує звіти.</p>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>

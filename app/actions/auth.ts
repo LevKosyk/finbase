@@ -51,6 +51,8 @@ export async function login(formData: FormData) {
 export async function signup(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const firstName = formData.get("firstName") as string;
+  const lastName = formData.get("lastName") as string;
   
   const headersList = await headers();
   const origin = getSafeOrigin(headersList.get("origin"));
@@ -65,13 +67,18 @@ export async function signup(formData: FormData) {
   }
 
   // 2. Generate Link/OTP manually (prevents default email)
-  // We use 'signUp' but with autoConfirm off? No, generateLink is better as it gives us the code directly.
   const { data, error } = await supabaseAdmin.auth.admin.generateLink({
     type: 'signup',
     email,
     password,
     options: {
         redirectTo: `${origin}/api/auth/callback`,
+        data: {
+          full_name: `${firstName} ${lastName}`.trim(),
+          name: `${firstName} ${lastName}`.trim(), // Legacy support if needed
+          first_name: firstName,
+          last_name: lastName
+        }
     }
   });
 

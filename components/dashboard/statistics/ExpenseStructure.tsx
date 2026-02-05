@@ -18,7 +18,7 @@ export default function ExpenseStructure({ data }: ExpenseStructureProps) {
     const total = data.reduce((sum, item) => sum + item.value, 0);
 
     return (
-        <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col h-[320px]">
+        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col h-[320px] hover:shadow-md transition-shadow duration-300">
             <h3 className="text-lg font-bold text-gray-900 mb-2">Структура витрат</h3>
             <div className="flex-1 flex gap-4">
                  <div className="w-1/2 relative h-full">

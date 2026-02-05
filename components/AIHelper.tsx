@@ -23,9 +23,10 @@ interface Message {
 interface AIHelperProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMessage?: string | null;
 }
 
-export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
+export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -36,6 +37,7 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasProcessedInitialRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -44,8 +46,37 @@ export default function AIHelper({ isOpen, onClose }: AIHelperProps) {
   useEffect(() => {
     if (isOpen) {
         scrollToBottom();
+        
+        // Handle initial message
+        if (initialMessage && !hasProcessedInitialRef.current) {
+            hasProcessedInitialRef.current = true;
+            const userMessage: Message = {
+                id: Date.now().toString(),
+                role: 'user',
+                content: initialMessage
+            };
+            setMessages(prev => [...prev, userMessage]);
+            setIsTyping(true);
+            
+            // Auto-reply
+            setTimeout(() => {
+                 const botMessage: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: 'assistant',
+                    content: `Відповідь на: "${initialMessage}". Це демо-режим, але я зрозумів ваше питання!`
+                  };
+                  setMessages(prev => [...prev, botMessage]);
+                  setIsTyping(false);
+            }, 1000);
+        }
+    } else {
+        // Reset when closed so next time it can process again if needed? 
+        // Or keep it processed. Let's reset if message changes or on close.
+        if (!isOpen) {
+             hasProcessedInitialRef.current = false;
+        }
     }
-  }, [messages, isTyping, isOpen]);
+  }, [isOpen, initialMessage]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();

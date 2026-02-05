@@ -48,26 +48,26 @@ export default function DashboardLayout({
 
   return (
     <UIProvider>
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
         {/* Sidebar - Desktop */}
         <aside 
-          className={`hidden md:flex flex-col bg-white border-r border-gray-200 fixed h-full z-20 transition-all duration-300 ease-in-out ${
+          className={`hidden md:flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed h-full z-20 transition-all duration-300 ease-in-out ${
             isCollapsed ? 'w-20' : 'w-64'
           }`}
         >
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between gap-3 relative">
+          <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3 relative">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-8 h-8 bg-[var(--fin-primary)] rounded-lg flex items-center justify-center text-white shrink-0">
                 <Wallet className="w-5 h-5" />
               </div>
               {!isCollapsed && (
-                <span className="text-xl font-bold text-gray-900 animate-in fade-in duration-300">Finbase</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white animate-in fade-in duration-300">Finbase</span>
               )}
             </div>
             
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="absolute -right-3 top-8 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 text-gray-500 z-50 text-xs"
+              className="absolute -right-3 top-8 w-6 h-6 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 z-50 text-xs"
             >
               {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
             </button>
@@ -84,8 +84,8 @@ export default function DashboardLayout({
                     isCollapsed ? 'justify-center' : ''
                   } ${
                     active 
-                      ? 'bg-blue-50 text-[var(--fin-primary)]' 
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-[var(--fin-primary)] dark:text-blue-400' 
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                   }`}
                   title={item.name}
                 >
@@ -96,7 +96,7 @@ export default function DashboardLayout({
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-100">
+          <div className="p-4 border-t border-gray-100 dark:border-gray-700">
              <Button 
                variant="ghost"
                onClick={handleLogout}
@@ -109,12 +109,12 @@ export default function DashboardLayout({
         </aside>
 
         {/* Mobile Header */}
-        <div className="md:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 py-3 flex items-center justify-between">
+        <div className="md:hidden fixed top-0 w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 z-20 px-4 py-3 flex items-center justify-between">
            <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[var(--fin-primary)] rounded-lg flex items-center justify-center text-white">
                 <Wallet className="w-4 h-4" />
               </div>
-              <span className="text-lg font-bold text-gray-900">Finbase</span>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">Finbase</span>
            </div>
            <Button 
               variant="ghost" 
@@ -132,9 +132,9 @@ export default function DashboardLayout({
         )}
 
         {/* Mobile Sidebar */}
-        <div className={`md:hidden fixed top-0 left-0 w-64 h-full bg-white z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-6 border-b border-gray-100">
-               <span className="text-xl font-bold text-gray-900">Меню</span>
+        <div className={`md:hidden fixed top-0 left-0 w-64 h-full bg-white dark:bg-gray-800 z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+               <span className="text-xl font-bold text-gray-900 dark:text-white">Меню</span>
           </div>
           <nav className="p-4 space-y-2">
              {navItems.map((item) => {

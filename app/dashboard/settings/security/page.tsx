@@ -41,11 +41,6 @@ export default function SecurityPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900">Безпека та вхід</h1>
-                <p className="text-gray-500 mt-2">Керуйте доступом до вашого акаунту та підключеними пристроями.</p>
-            </div>
-
             {/* Linked Accounts */}
             <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">

@@ -27,7 +27,7 @@ export default function FOPLimitWidget({ stats }: { stats: FOPStats['limit'] }) 
     };
 
     return (
-        <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm">
+        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center justify-between mb-6">
                 <div>
                      <h3 className="text-lg font-bold text-gray-900">Ліміт ФОП (3 група)</h3>

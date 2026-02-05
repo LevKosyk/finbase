@@ -21,7 +21,7 @@ export default function FinancialChart({ data }: FinancialChartProps) {
   const [period, setPeriod] = useState("Year");
 
   return (
-    <div className="bg-white rounded-[24px] p-8 border border-gray-100 shadow-sm col-span-2 relative overflow-hidden group">
+    <div className="bg-white rounded-[32px] p-6 md:p-8 border border-gray-100 shadow-sm h-full relative overflow-hidden group hover:shadow-md transition-all duration-300">
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div>
             <h3 className="text-lg font-bold text-gray-900">Фінансова картина</h3>

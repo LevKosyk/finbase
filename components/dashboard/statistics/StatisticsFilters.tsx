@@ -61,7 +61,7 @@ export default function StatisticsFilters() {
                                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                             }`}
                         >
-                            {p === 'month' ? 'Місяць' : p === 'quarter' ? 'Квартал' : p === 'year' ? 'Рік' : 'Власюк'}
+                            {p === 'month' ? 'Місяць' : p === 'quarter' ? 'Квартал' : p === 'year' ? 'Рік' : 'Довільний'}
                         </button>
                     ))}
                 </div>

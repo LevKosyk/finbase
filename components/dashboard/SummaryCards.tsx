@@ -57,34 +57,40 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         {cards.map((card, idx) => (
-            <div key={idx} className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 group">
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.lightColor} group-hover:scale-110 transition-transform duration-300`}>
-                        <card.icon className="w-6 h-6" />
-                    </div>
-                    {card.change !== undefined && (
-                        <div className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${card.change >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {card.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                            {Math.abs(card.change)}%
-                        </div>
-                    )}
-                </div>
+            <div key={idx} className="relative overflow-hidden bg-white/60 backdrop-blur-xl rounded-[32px] p-8 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group hover:-translate-y-1">
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${card.change && card.change >= 0 ? 'from-green-500/5' : 'from-blue-500/5'} to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:scale-150 transition-transform duration-700`}></div>
                 
-                <div>
-                     <p className="text-gray-500 text-sm font-medium mb-1">{card.label}</p>
-                     <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                        {typeof card.value === 'number' ? card.value.toLocaleString('uk-UA') + ' ₴' : card.value}
-                     </h3>
-                     {card.subtext && (
-                         <p className="text-xs font-bold text-gray-400 mt-2 flex items-center gap-2">
-                             {card.isLimit && (
-                                 <span className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden block">
-                                     <span className="block h-full bg-amber-500 rounded-full" style={{ width: `${stats.limit.percent}%` }}></span>
-                                 </span>
-                             )}
-                             {card.subtext}
-                         </p>
-                     )}
+                <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${card.lightColor} group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
+                            <card.icon className="w-7 h-7" />
+                        </div>
+                        {card.change !== undefined && (
+                            <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${card.change >= 0 ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                                {card.change >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                                {Math.abs(card.change)}%
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div>
+                         <p className="text-gray-500 text-sm font-semibold mb-2 tracking-wide uppercase">{card.label}</p>
+                         <h3 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
+                            {typeof card.value === 'number' ? card.value.toLocaleString('uk-UA') + ' ₴' : card.value}
+                         </h3>
+                         {card.subtext && (
+                             <div className="mt-4">
+                                {card.isLimit && (
+                                     <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                         <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${stats.limit.percent}%` }}></div>
+                                     </div>
+                                )}
+                                 <p className="text-xs font-bold text-gray-400 flex items-center gap-2">
+                                     {card.subtext}
+                                 </p>
+                             </div>
+                         )}
+                    </div>
                 </div>
             </div>
         ))}

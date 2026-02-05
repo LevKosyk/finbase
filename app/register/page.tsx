@@ -72,6 +72,22 @@ export default function RegisterPage() {
             </div>
 
             <form action={handleRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Ім'я"
+                        type="text"
+                        name="firstName"
+                        required
+                        placeholder="Іван"
+                    />
+                    <Input
+                        label="Прізвище"
+                        type="text"
+                        name="lastName"
+                        required
+                        placeholder="Петренко"
+                    />
+                </div>
                 <Input
                     label="Email"
                     type="email"
