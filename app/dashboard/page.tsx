@@ -1,9 +1,10 @@
 import { getDashboardStats } from "@/app/actions/dashboard";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import FinancialChart from "@/components/dashboard/FinancialChart";
-import TaskList from "@/components/dashboard/TaskList";
+
 import AIWidget from "@/components/dashboard/AIWidget";
 import TaxStatusBlock from "@/components/dashboard/TaxStatusBlock";
+import PremiumBlock from "@/components/dashboard/PremiumBlock";
 import { getUser } from "@/app/actions/auth";
 
 export default async function DashboardPage() {
@@ -39,31 +40,24 @@ export default async function DashboardPage() {
           {/* Left: Financial Chart (2/3) */}
           <FinancialChart data={stats.income.history} />
           
-          {/* Right: Tax & AI (1/3) */}
-          <div className="flex flex-col gap-6 h-[400px]">
-              <div className="flex-1">
+
+
+          {/* Right: Widgets (1/3) */}
+          <div className="flex flex-col gap-6">
+              <div className="h-[200px]">
                   <TaxStatusBlock stats={stats} />
               </div>
-              <div className="flex-1">
+              <div className="h-[300px]">
+                  <PremiumBlock />
+              </div>
+              <div className="h-[240px]">
                   <AIWidget />
               </div>
           </div>
       </div>
 
-      {/* 3. Bottom Row: Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TaskList />
-          
-           {/* Placeholder for future expansion or recent transactions list if needed */}
-           <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-[24px] p-8 text-white flex items-center justify-between relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-white/10 transition-colors"></div>
-                <div className="relative z-10 max-w-md">
-                    <h3 className="text-2xl font-bold mb-2">Все під контролем!</h3>
-                    <p className="text-gray-400">Ви успішно керуєте своїми фінансами. Не забувайте додавати нові доходи.</p>
-                </div>
-                {/* Could add a 'Add Income' button here conceptually */}
-           </div>
-      </div>
+      {/* 3. Bottom Row: Tasks (Removed per user request) */}
+
 
     </div>
   );

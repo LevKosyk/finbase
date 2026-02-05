@@ -37,7 +37,10 @@ export async function login(formData: FormData) {
   }
 
   // Sync user on login just in case
-  await syncUser();
+  const syncResult = await syncUser();
+  if (syncResult.user) {
+    await logSession(syncResult.user.id);
+  }
 
   revalidatePath("/", "layout");
   redirect("/dashboard");
@@ -116,7 +119,10 @@ export async function verifyEmail(email: string, code: string) {
   }
 
   if (data.user) {
-    await syncUser();
+    const syncResult = await syncUser();
+    if (syncResult.user) {
+        await logSession(syncResult.user.id);
+    }
     return { success: true };
   }
 
@@ -211,5 +217,43 @@ export async function getUser() {
     } catch (e) {
         console.error(e);
         return null;
+    }
+}
+
+async function logSession(userId: string) {
+    const headersList = await headers();
+    const userAgent = headersList.get("user-agent") || "Unknown";
+    const ip = headersList.get("x-forwarded-for") || "Unknown Icon"; // Basic check
+
+    // Simple parser for OS/Device (Mock-like for now, can be improved)
+    let os = "Unknown OS";
+    let device = "Desktop";
+    if (userAgent.includes("Mac")) os = "macOS";
+    if (userAgent.includes("Windows")) os = "Windows";
+    if (userAgent.includes("iPhone")) { os = "iOS"; device = "iPhone"; }
+    if (userAgent.includes("Android")) { os = "Android"; device = "Mobile"; }
+
+    let browser = "Unknown Browser";
+    if (userAgent.includes("Chrome")) browser = "Chrome";
+    if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) browser = "Safari";
+    if (userAgent.includes("Firefox")) browser = "Firefox";
+
+    try {
+        await prisma.session.create({
+            data: {
+                userId,
+                device,
+                os,
+                browser,
+                ip,
+                location: "Unknown", // GeoIP would go here
+                isCurrent: true
+            }
+        });
+        
+        // Update last active of others? Or simpler: Just create new record. 
+        // Real auth systems manage tokens. Here we just log "Login activity".
+    } catch (e) {
+        console.error("Failed to log session:", e);
     }
 }

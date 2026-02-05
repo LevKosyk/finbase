@@ -14,8 +14,10 @@ export default async function StatisticsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const resolvedSearchParams = await searchParams;
-  const period = (resolvedSearchParams?.period as 'month' | 'quarter' | 'year') || 'year';
-  const stats = await getStatistics(period);
+  const period = (resolvedSearchParams?.period as 'month' | 'quarter' | 'year' | 'custom') || 'year';
+  const from = resolvedSearchParams?.from as string | undefined;
+  const to = resolvedSearchParams?.to as string | undefined;
+  const stats = await getStatistics(period, from, to);
 
   if (!stats) {
       return (

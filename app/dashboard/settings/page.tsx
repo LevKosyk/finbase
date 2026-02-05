@@ -14,9 +14,7 @@ import {
   Briefcase,
   Loader2,
   Upload,
-  Facebook, 
-  Apple,
-  Chrome // Using Chrome icon for Google as generic 'Globe' or specific brand might differ
+  Shield
 } from "lucide-react";
 import { getUser } from "@/app/actions/auth";
 import { updateFOPSettings, updateProfile, updateNotificationSettings } from "@/app/actions/settings";
@@ -159,6 +157,7 @@ export default function SettingsPage() {
     { id: 'business', label: 'Мій ФОП', icon: Building2 },
     { id: 'notifications', label: 'Сповіщення', icon: Bell },
     { id: 'billing', label: 'Підписка', icon: CreditCard },
+    { id: 'security', label: 'Безпека', icon: Shield, href: '/dashboard/settings/security' },
   ];
 
   if (loading) {
@@ -179,18 +178,29 @@ export default function SettingsPage() {
       {/* Modern Floating Tabs */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-gray-100/80 backdrop-blur-md rounded-2xl mb-8 w-fit border border-gray-200/50">
         {tabs.map((tab) => (
-            <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 outline-none ${
-                    activeTab === tab.id 
-                    ? 'text-gray-900 bg-white shadow-sm' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
-                }`}
-            >
-                <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-[var(--fin-primary)]' : 'text-current'}`} />
-                {tab.label}
-            </button>
+            tab.href ? (
+                <Link
+                    key={tab.id}
+                    href={tab.href}
+                    className={`relative px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 outline-none text-gray-500 hover:text-gray-900 hover:bg-white/50`}
+                >
+                    <tab.icon className="w-4 h-4 text-current" />
+                    {tab.label}
+                </Link>
+            ) : (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 outline-none ${
+                        activeTab === tab.id 
+                        ? 'text-gray-900 bg-white shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                    }`}
+                >
+                    <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-[var(--fin-primary)]' : 'text-current'}`} />
+                    {tab.label}
+                </button>
+            )
         ))}
       </div>
 
@@ -224,18 +234,6 @@ export default function SettingsPage() {
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 mb-1">Особиста інформація</h2>
                         <p className="text-gray-500 text-sm mb-4">Керуйте своїми особистими даними та аватаром.</p>
-                        
-                        <div className="flex gap-3">
-                            <Button variant="outline" size="sm" className="gap-2" leftIcon={<Chrome className="w-4 h-4" />}>
-                                Google
-                            </Button>
-                            <Button variant="outline" size="sm" className="gap-2" leftIcon={<Apple className="w-4 h-4" />}>
-                                Apple
-                            </Button>
-                            <Button variant="outline" size="sm" className="gap-2" leftIcon={<Facebook className="w-4 h-4" />}>
-                                Facebook
-                            </Button>
-                        </div>
                     </div>
                 </div>
 

@@ -156,8 +156,7 @@ export async function getIncomeStats() {
             orderBy: { date: 'asc' }
         });
         
-        // Filter for current month/year if needed, for now getting all-time or simplified view
-        // Let's assume stats for "Current Month" vs "Last Month"
+        // Calculate "This Month" (Current Month)
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -167,12 +166,38 @@ export async function getIncomeStats() {
             return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
         });
 
+        // Calculate "Last Month" for comparison
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonth = lastMonthDate.getMonth();
+        const lastMonthYear = lastMonthDate.getFullYear();
+
+        const lastMonthIncomes = incomes.filter(i => {
+            const d = new Date(i.date);
+            return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        });
+
         const total = thisMonthIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+        const lastMonthTotal = lastMonthIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+        
+        // Calculate Change %
+        let change = 0;
+        if (lastMonthTotal === 0) {
+            change = total > 0 ? 100 : 0;
+        } else {
+            change = ((total - lastMonthTotal) / lastMonthTotal) * 100;
+        }
+
+        // Average Check (Total / Count) for this month
         const average = thisMonthIncomes.length > 0 ? total / thisMonthIncomes.length : 0;
         
-        const totalAllTime = incomes.reduce((acc, curr) => acc + curr.amount, 0); // Or use this for total card
-        
-        // Mock chart data
+        // Pending (Status check if strictly needed, otherwise 0 as mostly cash/direct)
+        // Assuming we might have a 'pending' status in the future or now. 
+        // The type has 'status', let's use it.
+        const pending = thisMonthIncomes
+            .filter(i => i.status === 'pending')
+            .reduce((acc, curr) => acc + curr.amount, 0);
+
+        // Chart Data
         const monthMap = new Map<string, number>();
         const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
         
@@ -183,17 +208,17 @@ export async function getIncomeStats() {
             monthMap.set(m, (monthMap.get(m) || 0) + inc.amount);
         });
         
-        // Fill 0 for months
         const chartData = months.map(m => ({ name: m, income: monthMap.get(m) || 0 }));
 
         return {
             total,
-            change: 12.5,
+            change: parseFloat(change.toFixed(1)),
             average,
-            pending: 0, // Mock
+            pending,
             chartData
         };
     } catch (e) {
+        console.error("Error calculating stats:", e);
         return { total: 0, change: 0, average: 0, pending: 0, chartData: [] };
     }
 }

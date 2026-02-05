@@ -27,7 +27,11 @@ export interface StatisticsData {
     }[];
 }
 
-export async function getStatistics(period: 'month' | 'quarter' | 'year' = 'year'): Promise<StatisticsData | null> {
+export async function getStatistics(
+    period: 'month' | 'quarter' | 'year' | 'custom' = 'year',
+    from?: string,
+    to?: string
+): Promise<StatisticsData | null> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -41,35 +45,54 @@ export async function getStatistics(period: 'month' | 'quarter' | 'year' = 'year
 
         // Date Range Logic
         const now = new Date();
-        const startDate = new Date();
+        let startDate = new Date();
         const previousStartDate = new Date(); // For comparison
         const previousEndDate = new Date();
         
+        // Helper to reset time
+        const resetTime = (d: Date) => d.setHours(0,0,0,0);
+        
         if (period === 'month') {
             startDate.setMonth(now.getMonth(), 1); 
-            startDate.setHours(0,0,0,0);
+            resetTime(startDate);
             
             previousStartDate.setMonth(now.getMonth() - 1, 1);
             previousEndDate.setMonth(now.getMonth(), 0);
         } else if (period === 'quarter') {
              // Quick implementation for quarter: last 3 months
              startDate.setMonth(now.getMonth() - 3, 1);
+             resetTime(startDate);
              
              previousStartDate.setMonth(now.getMonth() - 6, 1);
-        } else {
+        } else if (period === 'year') {
              // Year (Default to current year)
              startDate.setFullYear(now.getFullYear(), 0, 1);
-             startDate.setHours(0,0,0,0);
+             resetTime(startDate);
              
              previousStartDate.setFullYear(now.getFullYear() - 1, 0, 1);
              previousEndDate.setFullYear(now.getFullYear(), 0, 0); // End of last year
+        } else if (period === 'custom' && from && to) {
+            startDate = new Date(from);
+            resetTime(startDate);
+            
+            // For custom period, end date is important for the filter
+            // But main query logic below uses { gte: startDate } which might need adjustment for Upper Bound
+            // Let's refine the query logic to use lte for end date if custom
+        }
+
+        // Prepare Query Object
+        const dateFilter: any = { gte: startDate };
+        if (period === 'custom' && to) {
+            const endDate = new Date(to);
+            endDate.setHours(23, 59, 59, 999); // End of that day
+            dateFilter.lte = endDate;
         }
 
         // Fetch Data
         const incomes = await prisma.income.findMany({
             where: { 
                 userId: user.id,
-                date: { gte: startDate }
+                date: dateFilter
             },
             orderBy: { date: 'asc' }
         });
@@ -77,7 +100,7 @@ export async function getStatistics(period: 'month' | 'quarter' | 'year' = 'year
         const expenses = await prisma.expense.findMany({
             where: {
                 userId: user.id,
-                date: { gte: startDate }
+                date: dateFilter
             }
         });
 
