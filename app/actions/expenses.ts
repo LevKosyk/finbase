@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 export type ExpenseData = {
   amount: number;
@@ -17,6 +18,24 @@ export type ExpenseImportRow = {
   date: string;
   description?: string;
 };
+
+export const DEFAULT_EXPENSE_CATEGORIES = [
+  "Офіс",
+  "Маркетинг",
+  "Транспорт",
+  "Комунальні",
+  "Підписки",
+  "Інше"
+];
+
+function parseExpenseCategories(raw?: string | null) {
+  if (!raw) return DEFAULT_EXPENSE_CATEGORIES;
+  const categories = raw
+    .split(/[\n,]+/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+  return categories.length > 0 ? Array.from(new Set(categories)) : DEFAULT_EXPENSE_CATEGORIES;
+}
 
 export async function createExpense(data: ExpenseData) {
   const supabase = await createClient();
@@ -41,6 +60,18 @@ export async function createExpense(data: ExpenseData) {
     console.error("Failed to create expense:", error);
     return { success: false, error: "Failed to create expense" };
   }
+}
+
+export async function getExpenseCategories() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return DEFAULT_EXPENSE_CATEGORIES;
+
+  const settings = await prisma.fOPSettings.findUnique({
+    where: { userId: user.id },
+    select: { expenseCategories: true }
+  });
+  return parseExpenseCategories(settings?.expenseCategories);
 }
 
 export async function updateExpense(id: string, data: Partial<ExpenseData>) {
@@ -95,7 +126,7 @@ export async function getExpenses(searchParams?: {
   if (!user) return [];
 
   try {
-    const filters: any = { userId: user.id };
+    const filters: Prisma.ExpenseWhereInput = { userId: user.id };
 
     if (searchParams?.q) {
       filters.OR = [
@@ -190,12 +221,15 @@ export async function importExpenses(rows: ExpenseImportRow[]) {
   if (!user) throw new Error("Unauthorized");
 
   try {
+    const categories = await getExpenseCategories();
+    const defaultCategory = categories[0] || "Інше";
+
     const payload = rows
-      .filter(r => r.amount && r.category && r.date)
+      .filter(r => r.amount && r.date)
       .map(r => ({
         userId: user.id,
         amount: Number(r.amount),
-        category: r.category,
+        category: r.category || defaultCategory,
         date: new Date(r.date),
         description: r.description
       }));

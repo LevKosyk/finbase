@@ -8,11 +8,17 @@ import { Button } from "@/components/ui/Button";
 import GlobalAI from "@/components/dashboard/GlobalAI";
 import { UIProvider } from "@/components/providers/UIProvider";
 import { 
+  CalendarDays,
   ChevronLeft, 
   ChevronRight, 
+  FileText,
+  HeartPulse,
   LayoutDashboard, 
+  Landmark,
   LogOut, 
   Menu, 
+  Receipt, 
+  SlidersHorizontal,
   PieChart, 
   Settings, 
   Wallet, 
@@ -37,6 +43,12 @@ export default function DashboardLayout({
   const navItems = [
     { name: 'Дашборд', href: '/dashboard', icon: LayoutDashboard, exact: true },
     { name: 'Доходи', href: '/dashboard/income', icon: Wallet },
+    { name: 'Витрати', href: '/dashboard/expenses', icon: Receipt },
+    { name: 'Виписка', href: '/dashboard/bank', icon: Landmark },
+    { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal },
+    { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse },
+    { name: 'Документи', href: '/dashboard/documents', icon: FileText },
+    { name: 'Календар', href: '/dashboard/calendar', icon: CalendarDays },
     { name: 'Статистика', href: '/dashboard/statistics', icon: PieChart },
     { name: 'Налаштування', href: '/dashboard/settings', icon: Settings },
   ];

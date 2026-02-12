@@ -6,10 +6,12 @@ import AIWidget from "@/components/dashboard/AIWidget";
 import TaxStatusBlock from "@/components/dashboard/TaxStatusBlock";
 import PremiumBlock from "@/components/dashboard/PremiumBlock";
 import { getUser } from "@/app/actions/auth";
+import { getHealthDashboard } from "@/app/actions/health";
 
 export default async function DashboardPage() {
   const stats = await getDashboardStats();
   const user = await getUser();
+  const health = await getHealthDashboard();
 
   if (!stats) return <div>Loading...</div>;
 
@@ -57,6 +59,37 @@ export default async function DashboardPage() {
       </div>
 
       {/* 3. Bottom Row: Tasks (Removed per user request) */}
+      {health && (
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 md:p-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Здоров&apos;я ФОП</h2>
+            <a href="/dashboard/health" className="text-sm font-bold text-[var(--fin-primary)] hover:underline">
+              Деталі
+            </a>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">Ризик-скор</p>
+              <p className="font-extrabold text-3xl">{health.riskScore}/100</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">Ліміт доходу</p>
+              <p className="font-bold text-lg">{health.factors.limitUsage}%</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">Термінові/прострочені</p>
+              <p className="font-bold text-lg">{health.factors.dueSoonCount + health.factors.overdueCount}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {health.actionsToday.slice(0, 3).map((action, i) => (
+              <div key={`${i}-${action}`} className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900">
+                {i + 1}. {action}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
 
     </div>

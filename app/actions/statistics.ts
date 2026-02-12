@@ -47,50 +47,57 @@ export async function getStatistics(
                     include: { settings: true }
                 });
 
+                const taxRate = dbUser?.settings?.taxRate || 0;
+                const fixedMonthlyTax = dbUser?.settings?.fixedMonthlyTax || 0;
+                const esvMonthly = dbUser?.settings?.esvMonthly || 0;
+                const incomeLimit = dbUser?.settings?.incomeLimit || 0;
+
                 // Date Range Logic
                 const now = new Date();
                 let startDate = new Date();
-                const previousStartDate = new Date(); // For comparison
-                const previousEndDate = new Date();
+                let endDate = new Date();
+                let previousStartDate = new Date();
+                let previousEndDate = new Date();
+                let periodMonths = 1;
                 
                 // Helper to reset time
                 const resetTime = (d: Date) => d.setHours(0,0,0,0);
                 
                 if (period === 'month') {
-                    startDate.setMonth(now.getMonth(), 1); 
-                    resetTime(startDate);
-                    
-                    previousStartDate.setMonth(now.getMonth() - 1, 1);
-                    previousEndDate.setMonth(now.getMonth(), 0);
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                    previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+                    periodMonths = 1;
                 } else if (period === 'quarter') {
-                     // Quick implementation for quarter: last 3 months
-                     startDate.setMonth(now.getMonth() - 3, 1);
-                     resetTime(startDate);
-                     
-                     previousStartDate.setMonth(now.getMonth() - 6, 1);
+                     const quarter = Math.floor(now.getMonth() / 3);
+                     const startMonth = quarter * 3;
+                     startDate = new Date(now.getFullYear(), startMonth, 1);
+                     endDate = new Date(now.getFullYear(), startMonth + 3, 0, 23, 59, 59, 999);
+                     previousStartDate = new Date(now.getFullYear(), startMonth - 3, 1);
+                     previousEndDate = new Date(now.getFullYear(), startMonth, 0, 23, 59, 59, 999);
+                     periodMonths = 3;
                 } else if (period === 'year') {
-                     // Year (Default to current year)
-                     startDate.setFullYear(now.getFullYear(), 0, 1);
-                     resetTime(startDate);
-                     
-                     previousStartDate.setFullYear(now.getFullYear() - 1, 0, 1);
-                     previousEndDate.setFullYear(now.getFullYear(), 0, 0); // End of last year
+                     startDate = new Date(now.getFullYear(), 0, 1);
+                     endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+                     previousStartDate = new Date(now.getFullYear() - 1, 0, 1);
+                     previousEndDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+                     periodMonths = 12;
                 } else if (period === 'custom' && from && to) {
                     startDate = new Date(from);
+                    endDate = new Date(to);
+                    endDate.setHours(23, 59, 59, 999);
                     resetTime(startDate);
-                    
-                    // For custom period, end date is important for the filter
-                    // But main query logic below uses { gte: startDate } which might need adjustment for Upper Bound
-                    // Let's refine the query logic to use lte for end date if custom
+                    const diffMs = endDate.getTime() - startDate.getTime();
+                    const diffDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1);
+                    previousEndDate = new Date(startDate.getTime() - 1);
+                    previousStartDate = new Date(previousEndDate.getTime() - (diffDays - 1) * 24 * 60 * 60 * 1000);
+                    periodMonths = Math.max(1, Math.round(diffDays / 30));
                 }
 
                 // Prepare Query Object
-                const dateFilter: any = { gte: startDate };
-                if (period === 'custom' && to) {
-                    const endDate = new Date(to);
-                    endDate.setHours(23, 59, 59, 999); // End of that day
-                    dateFilter.lte = endDate;
-                }
+                const dateFilter = { gte: startDate, lte: endDate };
+                const previousDateFilter = { gte: previousStartDate, lte: previousEndDate };
 
                 // Fetch Data
                 const incomes = await prisma.income.findMany({
@@ -108,19 +115,33 @@ export async function getStatistics(
                     }
                 });
 
-                // previous period for comparison (Mock logic or real fetch? Let's do real fetch for better quality)
-                // ... (Omitting full comparison implementation for brevity in first pass, using Mock random change)
+                const previousIncomes = await prisma.income.findMany({
+                    where: { userId: user.id, date: previousDateFilter }
+                });
+                const previousExpenses = await prisma.expense.findMany({
+                    where: { userId: user.id, date: previousDateFilter }
+                });
                 
                 const totalIncome = incomes.reduce((sum: number, item) => sum + item.amount, 0);
                 const totalExpenses = expenses.reduce((sum: number, item) => sum + item.amount, 0);
                 const netProfit = totalIncome - totalExpenses;
-                const tax = totalIncome * 0.05; // Fixed 5% for now
+                const singleTax = totalIncome * taxRate + fixedMonthlyTax * periodMonths;
+                const esv = esvMonthly * periodMonths;
+                const tax = singleTax + esv;
 
-                // FOP Limit Group 3 (2024)
-                const fopLimit = 8286000;
-                // Limit calculation should be usually Yearly regardless of filter, but for this view let's keep it consistent? 
-                // Actually limit is ALWAYS yearly. So we need yearly income regardless of 'period' filter for the Limit widget.
-                const yearlyIncomes = period === 'year' ? incomes : await prisma.income.findMany({
+                const prevIncomeTotal = previousIncomes.reduce((sum: number, item) => sum + item.amount, 0);
+                const prevExpensesTotal = previousExpenses.reduce((sum: number, item) => sum + item.amount, 0);
+                const prevNetProfit = prevIncomeTotal - prevExpensesTotal;
+                const prevSingleTax = prevIncomeTotal * taxRate + fixedMonthlyTax * periodMonths;
+                const prevEsv = esvMonthly * periodMonths;
+                const prevTax = prevSingleTax + prevEsv;
+
+                const incomeChange = prevIncomeTotal === 0 ? (totalIncome > 0 ? 100 : 0) : ((totalIncome - prevIncomeTotal) / prevIncomeTotal) * 100;
+                const expensesChange = prevExpensesTotal === 0 ? (totalExpenses > 0 ? 100 : 0) : ((totalExpenses - prevExpensesTotal) / prevExpensesTotal) * 100;
+                const netProfitChange = prevNetProfit === 0 ? (netProfit > 0 ? 100 : 0) : ((netProfit - prevNetProfit) / prevNetProfit) * 100;
+                const taxChange = prevTax === 0 ? (tax > 0 ? 100 : 0) : ((tax - prevTax) / prevTax) * 100;
+
+                const yearlyIncomes = await prisma.income.findMany({
                     where: {
                         userId: user.id,
                         date: { gte: new Date(new Date().getFullYear(), 0, 1) }
@@ -148,18 +169,62 @@ export async function getStatistics(
                 const expenseStructure = Array.from(expenseCatMap.entries())
                      .map(([name, value], i) => ({ name, value, color: ['#ef4444', '#f97316', '#eab308', '#64748b'][i % 4] }));
 
-                const limitPercent = (yearTotalIncome / fopLimit) * 100;
+                const limitPercent = incomeLimit > 0 ? (yearTotalIncome / incomeLimit) * 100 : 0;
                 let limitStatus: 'ok' | 'warning' | 'danger' = 'ok';
                 if (limitPercent > 80) limitStatus = 'warning';
                 if (limitPercent > 90) limitStatus = 'danger';
 
+                const topIncomeSource = incomeStructure.sort((a, b) => b.value - a.value)[0];
+                const topExpenseCategory = expenseStructure.sort((a, b) => b.value - a.value)[0];
+                const topIncomeShare = totalIncome > 0 && topIncomeSource ? (topIncomeSource.value / totalIncome) * 100 : 0;
+                const topExpenseShare = totalExpenses > 0 && topExpenseCategory ? (topExpenseCategory.value / totalExpenses) * 100 : 0;
+                const marginPercent = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+                const taxBurdenPercent = totalIncome > 0 ? (tax / totalIncome) * 100 : 0;
+
+                const insights: StatisticsData["insights"] = [
+                    {
+                        id: "income-trend",
+                        title: incomeChange >= 0 ? "Динаміка доходу позитивна" : "Падіння доходу",
+                        description: `Зміна доходу становить ${incomeChange.toFixed(1)}% проти попереднього періоду.`,
+                        type: incomeChange >= 0 ? "growth" : "risk"
+                    },
+                    {
+                        id: "margin",
+                        title: marginPercent >= 35 ? "Маржинальність в нормі" : "Маржинальність просідає",
+                        description: `Поточна маржа: ${marginPercent.toFixed(1)}%. Витрати складають ${totalIncome > 0 ? ((totalExpenses / totalIncome) * 100).toFixed(1) : "0.0"}% від доходу.`,
+                        type: marginPercent >= 35 ? "growth" : marginPercent >= 20 ? "neutral" : "risk"
+                    },
+                    {
+                        id: "focus",
+                        title: topIncomeSource ? `Найсильніший канал: ${topIncomeSource.name}` : "Недостатньо даних по доходах",
+                        description: topIncomeSource
+                          ? `${topIncomeShare.toFixed(1)}% доходу приходить з одного джерела. ${topIncomeShare > 65 ? "Рекомендується диверсифікація." : "Структура доходу збалансована."}`
+                          : "Додайте доходи, щоб отримати аналітику по джерелах.",
+                        type: topIncomeShare > 65 ? "risk" : "neutral"
+                    },
+                    {
+                        id: "cost-driver",
+                        title: topExpenseCategory ? `Головна стаття витрат: ${topExpenseCategory.name}` : "Недостатньо даних по витратах",
+                        description: topExpenseCategory
+                          ? `${topExpenseShare.toFixed(1)}% витрат у цій категорії. ${topExpenseShare > 45 ? "Перевірте, чи можна оптимізувати цю статтю." : "Розподіл витрат без критичної концентрації."}`
+                          : "Додайте витрати, щоб бачити драйвери витрат.",
+                        type: topExpenseShare > 45 ? "risk" : "neutral"
+                    },
+                    {
+                        id: "tax-load",
+                        title: "Податкове навантаження",
+                        description: `Податки за період: ${tax.toLocaleString("uk-UA")} ₴ (${taxBurdenPercent.toFixed(1)}% від доходу).`,
+                        type: taxBurdenPercent > 20 ? "risk" : "neutral"
+                    }
+                ];
+
                 return {
                     period,
                     kpi: {
-                        income: { total: totalIncome, change: 12 }, // mocked change
-                        expenses: { total: totalExpenses, change: -5 },
-                        netProfit: { total: netProfit, change: 15 },
-                        tax: { total: tax, change: 12 }
+                        income: { total: totalIncome, change: parseFloat(incomeChange.toFixed(1)) },
+                        expenses: { total: totalExpenses, change: parseFloat(expensesChange.toFixed(1)) },
+                        netProfit: { total: netProfit, change: parseFloat(netProfitChange.toFixed(1)) },
+                        tax: { total: tax, change: parseFloat(taxChange.toFixed(1)) }
                     },
                     charts: {
                         incomeDynamics,
@@ -169,25 +234,22 @@ export async function getStatistics(
                     fop: {
                         limit: {
                             current: yearTotalIncome,
-                            max: fopLimit,
+                            max: incomeLimit,
                             percent: parseFloat(limitPercent.toFixed(1)),
                             status: limitStatus
                         }
                     },
-                    insights: [
-                        {
-                            id: '1',
-                            title: 'Хороший темп росту',
-                            description: `Ваш дохід зріс на 12% порівняно з минулим періодом.`,
-                            type: 'growth'
-                        },
-                        {
-                            id: '2',
-                            title: 'Обережно з лімітом',
-                            description: `Ви використали ${limitPercent.toFixed(1)}% річного ліміту.`,
-                            type: limitPercent > 80 ? 'risk' : 'neutral'
-                        }
-                    ]
+                    insights: incomeLimit > 0
+                      ? [
+                          ...insights,
+                          {
+                            id: "limit",
+                            title: limitPercent > 80 ? "Обережно з річним лімітом" : "Ліміт під контролем",
+                            description: `Використано ${limitPercent.toFixed(1)}% річного ліміту.`,
+                            type: limitPercent > 80 ? "risk" : "neutral"
+                          }
+                        ]
+                      : insights
                 };
 
             } catch (error) {

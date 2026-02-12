@@ -9,11 +9,36 @@ import { Loader2, Save, MapPin, Briefcase } from "lucide-react";
 import MotionWrapper from "@/components/MotionWrapper";
 import ProfileExport from "@/components/dashboard/settings/ProfileExport";
 
+interface FopFormData {
+    legalName: string;
+    ipn: string;
+    group: number | string;
+    address: string;
+    city: string;
+    street: string;
+    houseNumber: string;
+    zipCode: string;
+    kveds: string;
+    taxRatePercent: string;
+    fixedMonthlyTax: string;
+    esvMonthly: string;
+    incomeLimit: string;
+    reportingPeriod: string;
+    taxPaymentDay: string;
+    reportDay: string;
+    iban: string;
+    phone: string;
+    email: string;
+    registrationDate: string;
+    taxOffice: string;
+    expenseCategories: string;
+}
+
 export default function BusinessSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
-    const [fopData, setFopData] = useState<any>({
+    const [fopData, setFopData] = useState<FopFormData>({
         legalName: "",
         ipn: "",
         group: 3,
@@ -34,7 +59,8 @@ export default function BusinessSettingsPage() {
         phone: "",
         email: "",
         registrationDate: "",
-        taxOffice: ""
+        taxOffice: "",
+        expenseCategories: ""
     });
 
     useEffect(() => {
@@ -60,7 +86,8 @@ export default function BusinessSettingsPage() {
                     registrationDate: user.settings.registrationDate
                       ? new Date(user.settings.registrationDate).toISOString().slice(0, 10)
                       : "",
-                    taxOffice: user.settings.taxOffice || ""
+                    taxOffice: user.settings.taxOffice || "",
+                    expenseCategories: user.settings.expenseCategories || ""
                 });
             }
             setLoading(false);
@@ -93,7 +120,8 @@ export default function BusinessSettingsPage() {
             phone: fopData.phone || undefined,
             email: fopData.email || undefined,
             registrationDate: fopData.registrationDate ? new Date(fopData.registrationDate) : undefined,
-            taxOffice: fopData.taxOffice || undefined
+            taxOffice: fopData.taxOffice || undefined,
+            expenseCategories: fopData.expenseCategories || undefined
         });
         setSaving(false);
         if(res.success) alert("Дані ФОП збережено!");
@@ -315,6 +343,23 @@ export default function BusinessSettingsPage() {
                             value={fopData.taxOffice || ""}
                             onChange={(e) => setFopData({...fopData, taxOffice: e.target.value})}
                         />
+                        </div>
+
+                        <hr className="border-gray-100" />
+
+                        {/* Expense Dictionary */}
+                        <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-700">Категорії витрат (довідник)</label>
+                            <textarea 
+                                rows={3} 
+                                placeholder="Офіс, Маркетинг, Транспорт..." 
+                                value={fopData.expenseCategories || ""}
+                                onChange={(e) => setFopData({...fopData, expenseCategories: e.target.value})}
+                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
+                            ></textarea>
+                            <p className="text-xs text-gray-500">Розділяйте категорії комою або з нового рядка.</p>
+                        </div>
                         </div>
 
                         <hr className="border-gray-100" />

@@ -5,12 +5,13 @@ import XLSX from "xlsx";
 import PDFDocument from "pdfkit";
 
 type ExportFormat = "csv" | "xlsx" | "json" | "pdf";
-type ExportType = "incomes" | "profile";
+type ExportType = "incomes" | "expenses" | "profile";
+type ExportRow = Record<string, string | number | null | undefined>;
 
-function toCsv(rows: Record<string, any>[]) {
+function toCsv(rows: ExportRow[]) {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
-  const escape = (val: any) => {
+  const escape = (val: unknown) => {
     const str = String(val ?? "");
     if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
     return str;
@@ -22,14 +23,14 @@ function toCsv(rows: Record<string, any>[]) {
   return lines.join("\n");
 }
 
-function toXlsxBuffer(rows: Record<string, any>[], sheetName: string) {
+function toXlsxBuffer(rows: ExportRow[], sheetName: string) {
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
-function toPdfBuffer(title: string, rows: Record<string, any>[]) {
+function toPdfBuffer(title: string, rows: ExportRow[]) {
   const doc = new PDFDocument({ size: "A4", margin: 40 });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk) => chunks.push(chunk));
@@ -64,14 +65,14 @@ export async function GET(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (type !== "incomes" && type !== "profile") {
+  if (type !== "incomes" && type !== "expenses" && type !== "profile") {
     return NextResponse.json({ error: "Invalid export type" }, { status: 400 });
   }
   if (!["csv", "xlsx", "json", "pdf"].includes(format)) {
     return NextResponse.json({ error: "Invalid export format" }, { status: 400 });
   }
 
-  let rows: Record<string, any>[] = [];
+  let rows: ExportRow[] = [];
   if (type === "incomes") {
     const incomes = await prisma.income.findMany({
       where: { userId: user.id },
@@ -83,6 +84,17 @@ export async function GET(req: Request) {
       type: i.type,
       amount: i.amount,
       status: i.status
+    }));
+  } else if (type === "expenses") {
+    const expenses = await prisma.expense.findMany({
+      where: { userId: user.id },
+      orderBy: { date: "desc" }
+    });
+    rows = expenses.map((e) => ({
+      date: new Date(e.date).toISOString().slice(0, 10),
+      category: e.category,
+      description: e.description || "",
+      amount: e.amount
     }));
   } else {
     const settings = await prisma.fOPSettings.findUnique({ where: { userId: user.id } });
@@ -109,7 +121,8 @@ export async function GET(req: Request) {
         phone: settings?.phone || "",
         email: settings?.email || "",
         registrationDate: settings?.registrationDate ? new Date(settings.registrationDate).toISOString().slice(0, 10) : "",
-        taxOffice: settings?.taxOffice || ""
+        taxOffice: settings?.taxOffice || "",
+        expenseCategories: settings?.expenseCategories || ""
       }
     ];
   }
@@ -145,7 +158,8 @@ export async function GET(req: Request) {
     });
   }
 
-  const pdf = await toPdfBuffer(type === "incomes" ? "Доходи" : "Профіль ФОП", rows);
+  const pdfTitle = type === "incomes" ? "Доходи" : type === "expenses" ? "Витрати" : "Профіль ФОП";
+  const pdf = await toPdfBuffer(pdfTitle, rows);
   return new NextResponse(pdf, {
     headers: {
       "Content-Type": "application/pdf",

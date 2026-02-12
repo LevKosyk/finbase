@@ -22,6 +22,8 @@ model User {
   expenses  Expense[]
   subscription Subscription?
   sessions  Session[]
+  categorizationRules CategorizationRule[]
+  statementImports StatementImport[]
 }
 
 model Session {
@@ -85,6 +87,7 @@ model FOPSettings {
   email           String?
   registrationDate DateTime?
   taxOffice       String?
+  expenseCategories String? // Comma/newline separated categories for expense dictionary
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,4 +147,33 @@ model Expense {
   updatedAt DateTime @updatedAt
 
   @@index([userId, date])
+}
+
+model CategorizationRule {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  direction   String   @default("expense") // expense | income | auto
+  category    String
+  containsText String?
+  counterpartyContains String?
+  priority    Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, direction, priority])
+}
+
+model StatementImport {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileName   String
+  totalRows  Int      @default(0)
+  importedIncome Int  @default(0)
+  importedExpense Int @default(0)
+  duplicateRows Int   @default(0)
+  skippedRows Int     @default(0)
+  createdAt  DateTime @default(now())
 }
