@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 
 export type IncomeData = {
     amount: number;
@@ -10,6 +10,14 @@ export type IncomeData = {
     date: Date;
     type: string;
     status: string;
+}
+
+export type IncomeImportRow = {
+    amount: number;
+    source: string;
+    date: string;
+    type: string;
+    status?: string;
 }
 
 export async function createIncome(data: IncomeData) {
@@ -37,6 +45,40 @@ export async function createIncome(data: IncomeData) {
     } catch (error) {
         console.error("Failed to create income:", error);
         return { success: false, error: "Failed to create income" };
+    }
+}
+
+export async function importIncomes(rows: IncomeImportRow[]) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("Unauthorized");
+    }
+
+    try {
+        const payload = rows
+            .filter(r => r.amount && r.source && r.date && r.type)
+            .map(r => ({
+                userId: user.id,
+                amount: Number(r.amount),
+                source: r.source,
+                date: new Date(r.date),
+                type: r.type,
+                status: r.status || "completed"
+            }));
+
+        if (payload.length === 0) {
+            return { success: false, error: "No valid rows" };
+        }
+
+        await prisma.income.createMany({ data: payload });
+        revalidatePath('/dashboard/income');
+        revalidateTag('dashboard-stats');
+        return { success: true, count: payload.length };
+    } catch (error) {
+        console.error("Failed to import incomes:", error);
+        return { success: false, error: "Failed to import incomes" };
     }
 }
 

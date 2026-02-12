@@ -15,8 +15,10 @@ export interface DashboardStats {
     };
     tax: {
         amount: number;
+        singleTax: number;
+        esv: number;
         status: 'ok' | 'warning' | 'danger';
-        nextPaymentDate: string;
+        nextPaymentDate: string | null;
     };
     limit: {
         current: number;
@@ -26,10 +28,12 @@ export interface DashboardStats {
     fop: {
         group: number;
         taxSystem: string;
+        reportingPeriod: string;
     };
 }
 
 import { unstable_cache } from "next/cache";
+import { formatDateUA, getNextDueDate, getPeriodRange, getReportingPeriod, getStatusFromDueDate } from "@/lib/fop";
 
 export async function getDashboardStats() {
     const supabase = await createClient();
@@ -39,7 +43,7 @@ export async function getDashboardStats() {
 
     return await unstable_cache(
         async () => {
-             try {
+            try {
                 // Fetch user settings for FOP group
                 const dbUser = await prisma.user.findUnique({
                     where: { id: user.id },
@@ -47,8 +51,12 @@ export async function getDashboardStats() {
                 });
 
                 const fopGroup = dbUser?.settings?.group || 3;
-                const taxRate = 0.05; // Assuming 5% for now for group 3
-                const fopLimit = 8286000; // 2024 Limit for Group 3
+                const reportingPeriod = getReportingPeriod(dbUser?.settings?.reportingPeriod);
+                const taxRate = dbUser?.settings?.taxRate || 0;
+                const fixedMonthlyTax = dbUser?.settings?.fixedMonthlyTax || 0;
+                const esvMonthly = dbUser?.settings?.esvMonthly || 0;
+                const incomeLimit = dbUser?.settings?.incomeLimit || 0;
+                const taxPaymentDay = dbUser?.settings?.taxPaymentDay || null;
 
                 // Fetch Income
                 const incomes = await prisma.income.findMany({
@@ -56,10 +64,19 @@ export async function getDashboardStats() {
                     orderBy: { date: 'asc' }
                 });
 
-                // Calculate Total Income (YTD or All time? Let's say current year)
-                const currentYear = new Date().getFullYear();
+                const now = new Date();
+                const currentYear = now.getFullYear();
                 const currentYearIncomes = incomes.filter(i => new Date(i.date).getFullYear() === currentYear);
                 const totalIncome = currentYearIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+
+                const previousYearIncomes = incomes.filter(i => new Date(i.date).getFullYear() === currentYear - 1);
+                const lastYearToDate = previousYearIncomes.filter(i => {
+                    const d = new Date(i.date);
+                    const cutoff = new Date(currentYear - 1, now.getMonth(), now.getDate(), 23, 59, 59, 999);
+                    return d <= cutoff;
+                });
+                const lastYearTotal = lastYearToDate.reduce((acc, curr) => acc + curr.amount, 0);
+                const incomeChange = lastYearTotal === 0 ? (totalIncome > 0 ? 100 : 0) : ((totalIncome - lastYearTotal) / lastYearTotal) * 100;
 
                 // Chart Data (Group by Month)
                 const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
@@ -72,38 +89,60 @@ export async function getDashboardStats() {
                 });
                 const incomeHistory = Array.from(monthMap.entries()).map(([name, value]) => ({ name, value }));
 
-                // Calculate Tax (Simulated)
-                // Group 3: 5% of income
-                const taxAmount = totalIncome * taxRate; 
-                // Logic for next payment date (Quarterly)
-                const nextPaymentDate = "19.04.2026"; // Example
-                
-                // Mock Expenses (No table yet)
-                const expensesTotal = 12400; 
+                const { start: periodStart, end: periodEnd, months: periodMonths } = getPeriodRange(reportingPeriod, now);
+                const periodIncomes = incomes.filter(i => {
+                    const d = new Date(i.date);
+                    return d >= periodStart && d <= periodEnd;
+                });
+                const periodIncomeTotal = periodIncomes.reduce((acc, curr) => acc + curr.amount, 0);
+                const singleTax = periodIncomeTotal * taxRate + fixedMonthlyTax * periodMonths;
+                const esv = esvMonthly * periodMonths;
+                const taxAmount = singleTax + esv;
+                const nextDue = getNextDueDate(reportingPeriod, taxPaymentDay, now);
+                const nextPaymentDate = formatDateUA(nextDue);
+                const taxStatus = getStatusFromDueDate(nextDue);
+
+                const expenses = await prisma.expense.findMany({
+                    where: { userId: user.id },
+                    orderBy: { date: 'asc' }
+                });
+                const currentYearExpenses = expenses.filter(e => new Date(e.date).getFullYear() === currentYear);
+                const expensesTotal = currentYearExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+                const previousYearExpenses = expenses.filter(e => new Date(e.date).getFullYear() === currentYear - 1);
+                const lastYearExpensesToDate = previousYearExpenses.filter(e => {
+                    const d = new Date(e.date);
+                    const cutoff = new Date(currentYear - 1, now.getMonth(), now.getDate(), 23, 59, 59, 999);
+                    return d <= cutoff;
+                });
+                const lastYearExpensesTotal = lastYearExpensesToDate.reduce((acc, curr) => acc + curr.amount, 0);
+                const expensesChange = lastYearExpensesTotal === 0 ? (expensesTotal > 0 ? 100 : 0) : ((expensesTotal - lastYearExpensesTotal) / lastYearExpensesTotal) * 100;
 
                 return {
                     income: {
                         total: totalIncome,
-                        change: 12.5,
+                        change: parseFloat(incomeChange.toFixed(1)),
                         history: incomeHistory
                     },
                     expenses: {
                         total: expensesTotal,
-                        change: -2.4
+                        change: parseFloat(expensesChange.toFixed(1))
                     },
                     tax: {
                         amount: taxAmount,
-                        status: 'ok' as 'ok' | 'warning' | 'danger', // Logic: if today > deadline then danger
+                        singleTax,
+                        esv,
+                        status: taxStatus,
                         nextPaymentDate
                     },
                     limit: {
                         current: totalIncome,
-                        max: fopLimit,
-                        percent: (totalIncome / fopLimit) * 100
+                        max: incomeLimit,
+                        percent: incomeLimit > 0 ? (totalIncome / incomeLimit) * 100 : 0
                     },
                     fop: {
                         group: fopGroup,
-                        taxSystem: "Єдиний податок 5%"
+                        taxSystem: taxRate > 0 ? `ЄП ${Math.round(taxRate * 1000) / 10}%` : (fixedMonthlyTax > 0 ? "ЄП фіксований" : "ЄП"),
+                        reportingPeriod
                     }
                 };
 

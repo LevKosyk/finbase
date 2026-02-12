@@ -6,7 +6,6 @@ import AIWidget from "@/components/dashboard/AIWidget";
 import TaxStatusBlock from "@/components/dashboard/TaxStatusBlock";
 import PremiumBlock from "@/components/dashboard/PremiumBlock";
 import { getUser } from "@/app/actions/auth";
-import MotionWrapper from "@/components/MotionWrapper";
 
 export default async function DashboardPage() {
   const stats = await getDashboardStats();

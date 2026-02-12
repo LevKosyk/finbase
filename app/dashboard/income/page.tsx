@@ -1,12 +1,12 @@
 
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { getIncomes, getIncomeStats } from "@/app/actions/income";
 import IncomeList from "@/components/dashboard/IncomeList";
 import IncomeStats from "@/components/dashboard/income/IncomeStats";
 import IncomeFilters from "@/components/dashboard/income/IncomeFilters";
 import AddIncomeModal from "@/components/dashboard/income/AddIncomeModal";
 import AIHelperBlock from "@/components/dashboard/income/AIHelperBlock";
+import IncomeExport from "@/components/dashboard/income/IncomeExport";
+import IncomeImport from "@/components/dashboard/income/IncomeImport";
 
 export default async function IncomePage({
     searchParams,
@@ -36,14 +36,8 @@ export default async function IncomePage({
            <p className="text-gray-500 text-lg">Всі ваші фінансові надходження під контролем</p>
         </div>
         <div className="flex gap-3">
-            <Button 
-                variant="secondary"
-                className="font-bold border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm text-gray-700 bg-white"
-                leftIcon={<Download className="w-5 h-5" />}
-            >
-                <span className="hidden sm:inline">Експорт</span>
-            </Button>
-            
+            <IncomeExport />
+            <IncomeImport />
             <AddIncomeModal />
         </div>
       </div>

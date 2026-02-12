@@ -62,13 +62,29 @@ model FOPSettings {
   
   legalName String?
   ipn       String?
-  group     Int      @default(3) // 2 or 3
+  group     Int      @default(3) // 1..4
   address     String?
   city        String?
   street      String?
   houseNumber String?
   zipCode     String?
   kveds     String?  // Comma separated list
+
+  // Tax configuration (user-provided to avoid hardcoded legal assumptions)
+  taxRate         Float? // e.g. 0.05 for 5%
+  fixedMonthlyTax Float? // fixed monthly single tax
+  esvMonthly      Float? // monthly ESV amount
+  incomeLimit     Float? // annual income limit
+  reportingPeriod String? // monthly | quarterly | yearly
+  taxPaymentDay   Int?    // day of month for tax payment
+  reportDay       Int?    // day of month for reporting
+
+  // Document/profile data
+  iban            String?
+  phone           String?
+  email           String?
+  registrationDate DateTime?
+  taxOffice       String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

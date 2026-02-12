@@ -14,6 +14,18 @@ export async function updateFOPSettings(data: {
   houseNumber?: string;
   zipCode?: string;
   kveds?: string;
+  taxRate?: number;
+  fixedMonthlyTax?: number;
+  esvMonthly?: number;
+  incomeLimit?: number;
+  reportingPeriod?: string;
+  taxPaymentDay?: number;
+  reportDay?: number;
+  iban?: string;
+  phone?: string;
+  email?: string;
+  registrationDate?: Date;
+  taxOffice?: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

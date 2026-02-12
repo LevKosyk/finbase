@@ -38,15 +38,15 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
     {
         label: "Податки до сплати",
         value: tax.amount,
-        subtext: `Сплатити до ${tax.nextPaymentDate}`,
+        subtext: tax.nextPaymentDate ? `Сплатити до ${tax.nextPaymentDate}` : "Заповніть налаштування податків",
         icon: TrendingDown,
         color: "bg-orange-500",
         lightColor: "bg-orange-50 text-orange-700"
     },
     {
         label: "Залишок ліміту",
-        value: limit.max - limit.current,
-        subtext: `${limit.percent.toFixed(1)}% використано`,
+        value: Math.max(0, limit.max - limit.current),
+        subtext: limit.max > 0 ? `${limit.percent.toFixed(1)}% використано` : "Ліміт не задано",
         icon: AlertTriangle,
         color: "bg-amber-500",
         lightColor: "bg-amber-50 text-amber-700",
@@ -80,9 +80,9 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
                          </h3>
                          {card.subtext && (
                              <div className="mt-4">
-                                {card.isLimit && (
+                                {card.isLimit && limit.max > 0 && (
                                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                                         <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${stats.limit.percent}%` }}></div>
+                                         <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${Math.min(100, stats.limit.percent)}%` }}></div>
                                      </div>
                                 )}
                                  <p className="text-xs font-bold text-gray-400 flex items-center gap-2">

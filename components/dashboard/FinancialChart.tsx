@@ -9,8 +9,6 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { useState } from 'react';
-import { Calendar } from 'lucide-react';
 import { DashboardStats } from "@/app/actions/dashboard";
 
 interface FinancialChartProps {
@@ -18,8 +16,6 @@ interface FinancialChartProps {
 }
 
 export default function FinancialChart({ data }: FinancialChartProps) {
-  const [period, setPeriod] = useState("Year");
-
   return (
     <div className="bg-white rounded-[32px] p-6 md:p-8 border border-gray-100 shadow-sm h-full relative overflow-hidden group hover:shadow-md transition-all duration-300">
       <div className="flex items-center justify-between mb-8 relative z-10">
@@ -27,9 +23,8 @@ export default function FinancialChart({ data }: FinancialChartProps) {
             <h3 className="text-lg font-bold text-gray-900">Фінансова картина</h3>
             <p className="text-sm text-gray-400">Динаміка доходів та витрат</p>
         </div>
-        <div className="flex bg-gray-50 p-1 rounded-xl">
-             <button className="px-4 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm text-gray-900 transition-all">Рік</button>
-             <button className="px-4 py-1.5 text-xs font-bold rounded-lg text-gray-500 hover:text-gray-900 transition-all">Місяць</button>
+        <div className="flex bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold text-gray-600">
+            Поточний рік
         </div>
       </div>
 
