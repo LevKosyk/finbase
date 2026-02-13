@@ -4,14 +4,12 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getExpenseCategories } from "@/app/actions/expenses";
+import type { BankStatementRow } from "@/lib/types/bank";
+import { Prisma } from "@prisma/client";
+import { cacheKey, invalidateUserCache, withRedisCache } from "@/lib/redis-cache";
 
-export interface BankStatementRow {
-  date: string;
-  amount: number;
-  description?: string;
-  counterparty?: string;
-  currency?: string;
-  direction?: "income" | "expense" | "";
+function isMissingTableError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
 }
 
 function normalizeText(value?: string | null) {
@@ -71,10 +69,26 @@ export async function importBankStatement(rows: BankStatementRow[], fileName = "
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
 
-  const rules = await prisma.categorizationRule.findMany({
-    where: { userId: user.id, isActive: true },
-    orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
-  });
+  let rules: Array<{
+    direction: string;
+    category: string;
+    containsText: string | null;
+    counterpartyContains: string | null;
+  }> = [];
+  try {
+    rules = await prisma.categorizationRule.findMany({
+      where: { userId: user.id, isActive: true },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+      select: {
+        direction: true,
+        category: true,
+        containsText: true,
+        counterpartyContains: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
   const expenseCategories = await getExpenseCategories();
   const defaultExpenseCategory = expenseCategories[0] || "Інше";
 
@@ -195,22 +209,27 @@ export async function importBankStatement(rows: BankStatementRow[], fileName = "
     await prisma.expense.createMany({ data: expensePayload });
   }
 
-  await prisma.statementImport.create({
-    data: {
-      userId: user.id,
-      fileName,
-      totalRows: rows.length,
-      importedIncome: incomePayload.length,
-      importedExpense: expensePayload.length,
-      duplicateRows: duplicates,
-      skippedRows: skipped,
-    },
-  });
+  try {
+    await prisma.statementImport.create({
+      data: {
+        userId: user.id,
+        fileName,
+        totalRows: rows.length,
+        importedIncome: incomePayload.length,
+        importedExpense: expensePayload.length,
+        duplicateRows: duplicates,
+        skippedRows: skipped,
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+  }
 
   revalidatePath("/dashboard/income");
   revalidatePath("/dashboard/expenses");
   revalidatePath("/dashboard/health");
-  revalidateTag("dashboard-stats");
+  revalidateTag("dashboard-stats", "max");
+  await invalidateUserCache(user.id);
 
   return {
     success: true,
@@ -227,9 +246,16 @@ export async function getStatementImports() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  return prisma.statementImport.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  try {
+    return await withRedisCache(cacheKey("user", user.id, "statement-imports"), 90, async () => {
+      return prisma.statementImport.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+    });
+  } catch (error) {
+    if (isMissingTableError(error)) return [];
+    throw error;
+  }
 }

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { importIncomes, type IncomeImportRow } from "@/app/actions/income";
+import { importIncomes } from "@/app/actions/income";
+import type { IncomeImportRow } from "@/lib/types/income";
 
 const headerMap: Record<string, keyof IncomeImportRow> = {
   date: "date",
@@ -32,11 +33,11 @@ export default function IncomeImport() {
       skipEmptyLines: true,
       complete: async (results) => {
         const rows = (results.data as Record<string, string>[]).map((row) => {
-          const mapped: any = {};
+          const mapped: Partial<Record<keyof IncomeImportRow, string>> = {};
           Object.entries(row).forEach(([key, value]) => {
             const normalized = key.trim().toLowerCase();
             const target = headerMap[normalized];
-            if (target) mapped[target] = value?.toString().trim();
+            if (target) mapped[target] = String(value ?? "").trim();
           });
           return {
             date: mapped.date,
@@ -77,12 +78,12 @@ export default function IncomeImport() {
       />
       <Button
         variant="secondary"
-        className="font-bold border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm text-gray-700 bg-white"
+        className="min-w-[132px]"
         leftIcon={<UploadCloud className="w-5 h-5" />}
         onClick={() => inputRef.current?.click()}
         isLoading={isLoading}
       >
-        <span className="hidden sm:inline">Імпорт CSV</span>
+        Імпорт
       </Button>
     </>
   );

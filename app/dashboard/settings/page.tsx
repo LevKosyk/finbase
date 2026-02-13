@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   Save, 
-  Camera,
   Mail,
   Loader2,
   Upload
@@ -20,8 +19,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  type UserProfileData = {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    name?: string | null;
+    email?: string | null;
+    avatarUrl?: string | null;
+  };
+
   // State for form data
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<UserProfileData | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -36,12 +44,13 @@ export default function SettingsPage() {
 
   const handleProfileSave = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (!userData) return;
       setSaving(true);
       const res = await updateProfile({ 
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          name: `${userData.firstName} ${userData.lastName}`.trim(),
-          avatarUrl: userData.avatarUrl
+          firstName: userData.firstName ?? undefined,
+          lastName: userData.lastName ?? undefined,
+          name: `${userData.firstName ?? ""} ${userData.lastName ?? ""}`.trim(),
+          avatarUrl: userData.avatarUrl ?? undefined
       });
       setSaving(false);
       if(res.success) alert("Профіль оновлено!");
@@ -50,7 +59,7 @@ export default function SettingsPage() {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (!file) return;
+      if (!file || !userData) return;
       
       try {
           setSaving(true);
@@ -65,13 +74,13 @@ export default function SettingsPage() {
           if (uploadError) {
                const reader = new FileReader();
                reader.onload = (ev) => {
-                   setUserData({...userData, avatarUrl: ev.target?.result as string});
+                   setUserData((prev) => (prev ? { ...prev, avatarUrl: ev.target?.result as string } : prev));
                };
                reader.readAsDataURL(file);
                alert("Upload failed (bucket missing?), using local preview.");
           } else {
              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-             setUserData({...userData, avatarUrl: publicUrl});
+             setUserData((prev) => (prev ? { ...prev, avatarUrl: publicUrl } : prev));
           }
       } catch (error) {
           console.error(error);
@@ -88,17 +97,25 @@ export default function SettingsPage() {
       );
   }
 
+  if (!userData) {
+      return (
+          <div className="flex items-center justify-center min-h-[500px] text-gray-500 dark:text-gray-400">
+              Не вдалося завантажити профіль.
+          </div>
+      );
+  }
+
   return (
     <MotionWrapper>
-      <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm p-8 min-h-[500px] relative overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm p-8 min-h-[500px] relative overflow-hidden">
         
         {/* Decorative background blob */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-[var(--fin-primary)]/5 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="max-w-3xl relative z-10">
-            <div className="flex flex-col md:flex-row gap-8 mb-10 pb-10 border-b border-gray-100 items-start">
+            <div className="flex flex-col md:flex-row gap-8 mb-10 pb-10 border-b border-gray-100 dark:border-gray-700 items-start">
                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-white shadow-xl flex items-center justify-center text-gray-400 text-4xl font-bold overflow-hidden relative">
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border-4 border-white dark:border-gray-800 shadow-xl flex items-center justify-center text-gray-400 dark:text-gray-300 text-4xl font-bold overflow-hidden relative">
                          {userData?.avatarUrl ? (
                             <img src={userData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                          ) : (
@@ -117,8 +134,8 @@ export default function SettingsPage() {
                     />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">Особиста інформація</h2>
-                    <p className="text-gray-500 text-sm mb-4">Керуйте своїми особистими даними та аватаром.</p>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Особиста інформація</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Керуйте своїми особистими даними та аватаром.</p>
                 </div>
             </div>
 
@@ -128,14 +145,14 @@ export default function SettingsPage() {
                         label="Ім'я"
                         type="text" 
                         value={userData?.firstName || ""} 
-                        onChange={(e) => setUserData({...userData, firstName: e.target.value})}
+                        onChange={(e) => setUserData((prev) => (prev ? { ...prev, firstName: e.target.value } : prev))}
                         placeholder="Іван"
                     />
                     <Input 
                         label="Прізвище"
                         type="text" 
                         value={userData?.lastName || ""} 
-                        onChange={(e) => setUserData({...userData, lastName: e.target.value})}
+                        onChange={(e) => setUserData((prev) => (prev ? { ...prev, lastName: e.target.value } : prev))}
                         placeholder="Петренко"
                     />
                 </div>

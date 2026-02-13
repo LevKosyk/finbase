@@ -2,32 +2,10 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
-
-export interface StatisticsData {
-    period: string;
-    kpi: {
-        income: { total: number; change: number };
-        expenses: { total: number; change: number };
-        netProfit: { total: number; change: number };
-        tax: { total: number; change: number };
-    };
-    charts: {
-        incomeDynamics: { date: string; amount: number; type: 'income' | 'expense' }[];
-        incomeStructure: { name: string; value: number; color: string }[];
-        expenseStructure: { name: string; value: number; color: string }[];
-    };
-    fop: {
-        limit: { current: number; max: number; percent: number; status: 'ok' | 'warning' | 'danger' };
-    };
-    insights: {
-        id: string;
-        title: string;
-        description: string;
-        type: 'growth' | 'risk' | 'neutral';
-    }[];
-}
+import type { StatisticsData } from "@/lib/types/statistics";
 
 import { unstable_cache } from "next/cache";
+import { cacheKey, withRedisCache } from "@/lib/redis-cache";
 
 export async function getStatistics(
     period: 'month' | 'quarter' | 'year' | 'custom' = 'year',
@@ -39,7 +17,8 @@ export async function getStatistics(
 
     if (!user) return null;
 
-    return await unstable_cache(
+    const redisKey = cacheKey("user", user.id, "statistics", period, from || "na", to || "na");
+    return withRedisCache(redisKey, 120, async () => await unstable_cache(
         async () => {
              try {
                 const dbUser = await prisma.user.findUnique({
@@ -218,6 +197,18 @@ export async function getStatistics(
                     }
                 ];
 
+                const insightsWithLimit: StatisticsData["insights"] = incomeLimit > 0
+                  ? [
+                      ...insights,
+                      {
+                        id: "limit",
+                        title: limitPercent > 80 ? "Обережно з річним лімітом" : "Ліміт під контролем",
+                        description: `Використано ${limitPercent.toFixed(1)}% річного ліміту.`,
+                        type: (limitPercent > 80 ? "risk" : "neutral") as "risk" | "neutral",
+                      },
+                    ]
+                  : insights;
+
                 return {
                     period,
                     kpi: {
@@ -239,17 +230,7 @@ export async function getStatistics(
                             status: limitStatus
                         }
                     },
-                    insights: incomeLimit > 0
-                      ? [
-                          ...insights,
-                          {
-                            id: "limit",
-                            title: limitPercent > 80 ? "Обережно з річним лімітом" : "Ліміт під контролем",
-                            description: `Використано ${limitPercent.toFixed(1)}% річного ліміту.`,
-                            type: limitPercent > 80 ? "risk" : "neutral"
-                          }
-                        ]
-                      : insights
+                    insights: insightsWithLimit
                 };
 
             } catch (error) {
@@ -259,5 +240,5 @@ export async function getStatistics(
         },
         [`stats-${user.id}-${period}-${from}-${to}`],
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 }
-    )();
+    )());
 }

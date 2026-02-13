@@ -6,8 +6,13 @@ import { getAIResponse } from "@/app/actions/chat";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
+type ChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState<any[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: 'Привіт! Я ваш фінансовий асистент Finbase AI. Я знаю ваші доходи та податкову групу. Чим можу допомогти?' }
   ]);
   const [input, setInput] = useState("");
@@ -26,7 +31,7 @@ export default function ChatPage() {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMsg = { role: 'user', content: input };
+    const userMsg: ChatMessage = { role: "user", content: input };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
@@ -40,9 +45,12 @@ export default function ChatPage() {
     setLoading(false);
 
     if (response.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Вибачте, виникла помилка. Перевірте налаштування API ключа.' }]);
+        setMessages(prev => [...prev, { role: "assistant", content: "Вибачте, виникла помилка. Перевірте налаштування API ключа." }]);
     } else {
-        setMessages(prev => [...prev, response]);
+        setMessages(prev => [
+          ...prev,
+          { role: "assistant", content: response.content || "Немає відповіді." },
+        ]);
     }
   };
 
@@ -53,25 +61,25 @@ export default function ChatPage() {
                 <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">AI Фінансовий Асистент</h1>
-                <p className="text-gray-500 text-sm">Запитайте про податки, доходи чи аналітику</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">AI Фінансовий Асистент</h1>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Запитайте про податки, доходи чи аналітику</p>
             </div>
        </div>
 
        {/* Chat Container */}
-       <div className="flex-1 bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none opacity-50"></div>
+       <div className="flex-1 bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 dark:bg-indigo-900/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none opacity-50"></div>
             
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-200">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
                 {messages.map((m, i) => (
                     <div key={i} className={`flex gap-4 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-gray-100' : 'bg-indigo-100'}`}>
-                            {m.role === 'user' ? <User className="w-5 h-5 text-gray-600" /> : <Bot className="w-5 h-5 text-indigo-600" />}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-gray-100 dark:bg-gray-800' : 'bg-indigo-100 dark:bg-indigo-900/40'}`}>
+                            {m.role === 'user' ? <User className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <Bot className="w-5 h-5 text-indigo-600 dark:text-indigo-300" />}
                         </div>
                         <div className={`max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed ${
                             m.role === 'user' 
-                                ? 'bg-gray-900 text-white rounded-tr-none' 
-                                : 'bg-gray-50 text-gray-800 rounded-tl-none border border-gray-100'
+                                ? 'bg-blue-100 text-gray-900 dark:bg-blue-900/30 dark:text-blue-50 rounded-tr-none' 
+                                : 'bg-gray-50 text-gray-800 dark:bg-gray-800 dark:text-gray-100 rounded-tl-none border border-gray-100 dark:border-gray-700'
                         }`}>
                             {m.content}
                         </div>
@@ -79,10 +87,10 @@ export default function ChatPage() {
                 ))}
                 {loading && (
                     <div className="flex gap-4">
-                         <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 animate-pulse">
-                            <Bot className="w-5 h-5 text-indigo-600" />
+                         <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0 animate-pulse">
+                            <Bot className="w-5 h-5 text-indigo-600 dark:text-indigo-300" />
                         </div>
-                         <div className="bg-gray-50 rounded-2xl p-4 rounded-tl-none border border-gray-100 flex items-center gap-2 text-gray-400 text-sm">
+                         <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4 rounded-tl-none border border-gray-100 dark:border-gray-700 flex items-center gap-2 text-gray-400 dark:text-gray-300 text-sm">
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Думаю...
                         </div>
@@ -92,7 +100,7 @@ export default function ChatPage() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-gray-100 bg-white relative z-10">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 relative z-10">
                 <form onSubmit={handleSubmit} className="relative">
                     <Input 
                         type="text" 

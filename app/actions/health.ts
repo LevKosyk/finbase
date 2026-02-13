@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { buildObligationsTimeline } from "@/lib/compliance";
+import { cacheKey, withRedisCache } from "@/lib/redis-cache";
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
@@ -13,6 +14,8 @@ export async function getHealthDashboard() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const redisKey = cacheKey("user", user.id, "health-dashboard");
+  return withRedisCache(redisKey, 120, async () => {
   const now = new Date();
   const startYear = new Date(now.getFullYear(), 0, 1);
   const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -85,4 +88,5 @@ export async function getHealthDashboard() {
     },
     actionsToday,
   };
+  });
 }

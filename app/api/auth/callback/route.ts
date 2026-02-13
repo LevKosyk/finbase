@@ -1,28 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
-import { prisma } from "@/lib/prisma"; // твой Prisma client
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { prisma } from "@/lib/prisma";
+import { getSupabaseEnv } from "@/lib/supabaseEnv";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const access_token = searchParams.get("access_token");
+  const { searchParams, origin } = new URL(req.url);
+  const code = searchParams.get("code");
 
-  if (!access_token) return NextResponse.redirect("/app/login");
+  const { url, anonKey, isConfigured, isValidUrl } = getSupabaseEnv();
+  if (!isConfigured || !isValidUrl) {
+    return NextResponse.redirect(new URL("/login", origin));
+  }
 
-  const { data: { user }, error } = await supabase.auth.getUser(access_token);
-
-  if (error || !user || !user.email) return NextResponse.redirect(new URL("/login", req.url));
-
-  // Создаем или обновляем запись в User
-  await prisma.user.upsert({
-    where: { email: user.email! },
-    update: {
-      name: user.user_metadata.full_name || user.email,
-    },
-    create: {
-      email: user.email!,
-      name: user.user_metadata.full_name || user.email,
+  const cookieStore = await cookies();
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
+      },
     },
   });
 
-  return NextResponse.redirect("/app/dashboard");
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code);
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !user.email) {
+    return NextResponse.redirect(new URL("/login", origin));
+  }
+
+  await prisma.user.upsert({
+    where: { email: user.email },
+    update: {
+      name: user.user_metadata.full_name || user.user_metadata.name || user.email,
+      avatarUrl: user.user_metadata.avatar_url || null,
+    },
+    create: {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata.full_name || user.user_metadata.name || user.email,
+      firstName: user.user_metadata.first_name || null,
+      lastName: user.user_metadata.last_name || null,
+      avatarUrl: user.user_metadata.avatar_url || null,
+    },
+  });
+
+  return NextResponse.redirect(new URL("/dashboard", origin));
 }
+

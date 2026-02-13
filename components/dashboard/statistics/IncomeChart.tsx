@@ -21,22 +21,22 @@ export default function IncomeChart({ data }: IncomeChartProps) {
     const [chartType, setChartType] = useState<'area' | 'bar'>('area');
 
     return (
-        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col h-[400px] hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-[400px] hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h3 className="text-xl font-bold text-gray-900">Динаміка доходів</h3>
-                    <p className="text-sm text-gray-500">Як змінювався ваш дохід у часі</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Динаміка доходів</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Як змінювався ваш дохід у часі</p>
                 </div>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                      <button 
                         onClick={() => setChartType('area')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${chartType === 'area' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${chartType === 'area' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}
                      >
                         Лінія
                      </button>
                      <button 
                         onClick={() => setChartType('bar')}
-                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${chartType === 'bar' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}
                      >
                         Стовпці
                      </button>

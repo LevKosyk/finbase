@@ -3,22 +3,9 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
-
-export type IncomeData = {
-    amount: number;
-    source: string;
-    date: Date;
-    type: string;
-    status: string;
-}
-
-export type IncomeImportRow = {
-    amount: number;
-    source: string;
-    date: string;
-    type: string;
-    status?: string;
-}
+import type { IncomeData, IncomeImportRow } from "@/lib/types/income";
+import { Prisma } from "@prisma/client";
+import { cacheKey, invalidateUserCache, withRedisCache } from "@/lib/redis-cache";
 
 export async function createIncome(data: IncomeData) {
     const supabase = await createClient();
@@ -40,7 +27,8 @@ export async function createIncome(data: IncomeData) {
             }
         });
         revalidatePath('/dashboard/income');
-        revalidateTag('dashboard-stats');
+        revalidateTag('dashboard-stats', "max");
+        await invalidateUserCache(user.id);
         return { success: true };
     } catch (error) {
         console.error("Failed to create income:", error);
@@ -74,7 +62,8 @@ export async function importIncomes(rows: IncomeImportRow[]) {
 
         await prisma.income.createMany({ data: payload });
         revalidatePath('/dashboard/income');
-        revalidateTag('dashboard-stats');
+        revalidateTag('dashboard-stats', "max");
+        await invalidateUserCache(user.id);
         return { success: true, count: payload.length };
     } catch (error) {
         console.error("Failed to import incomes:", error);
@@ -94,6 +83,7 @@ export async function updateIncome(id: string, data: Partial<IncomeData>) {
             data
         });
         revalidatePath('/dashboard/income');
+        await invalidateUserCache(user.id);
         return { success: true };
     } catch (error) {
         console.error("Failed to update income:", error);
@@ -112,6 +102,7 @@ export async function deleteIncome(id: string) {
             where: { id, userId: user.id }
         });
         revalidatePath('/dashboard/income');
+        await invalidateUserCache(user.id);
         return { success: true };
     } catch (error) {
         console.error("Failed to delete income:", error);
@@ -135,7 +126,7 @@ export async function getIncomes(searchParams?: {
   if (!user) return [];
 
   try {
-    const filters: any = { userId: user.id };
+    const filters: Prisma.IncomeWhereInput = { userId: user.id };
 
     if (searchParams?.q) {
         filters.OR = [
@@ -175,12 +166,15 @@ export async function getIncomes(searchParams?: {
         }
     }
 
-    const incomes = await prisma.income.findMany({
-      where: filters,
-      orderBy: { date: 'desc' },
-      take: 100
+    const key = cacheKey("user", user.id, "incomes", JSON.stringify(searchParams || {}));
+    return withRedisCache(key, 90, async () => {
+      const incomes = await prisma.income.findMany({
+        where: filters,
+        orderBy: { date: 'desc' },
+        take: 100
+      });
+      return incomes;
     });
-    return incomes;
   } catch (error) {
     console.error("Error fetching incomes:", error);
     return [];
@@ -193,7 +187,8 @@ export async function getIncomeStats() {
   
     if (!user) return { total: 0, change: 0, average: 0, pending: 0, chartData: [] };
 
-    return await unstable_cache(
+    const redisKey = cacheKey("user", user.id, "income-stats");
+    return withRedisCache(redisKey, 120, async () => await unstable_cache(
         async () => {
              try {
                 const incomes = await prisma.income.findMany({
@@ -269,7 +264,7 @@ export async function getIncomeStats() {
         },
         [`income-stats-${user.id}`],
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 }
-    )();
+    )());
   
     
 }

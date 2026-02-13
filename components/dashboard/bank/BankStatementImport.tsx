@@ -5,7 +5,8 @@ import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { importBankStatement, type BankStatementRow } from "@/app/actions/bank";
+import { importBankStatement } from "@/app/actions/bank";
+import type { BankStatementRow } from "@/lib/types/bank";
 import { useRouter } from "next/navigation";
 
 const headerMap: Record<string, keyof BankStatementRow> = {
@@ -83,11 +84,11 @@ export default function BankStatementImport() {
     }
     setError("");
     setReport({
-      totalRows: res.totalRows,
-      importedIncome: res.importedIncome,
-      importedExpense: res.importedExpense,
-      duplicates: res.duplicates,
-      skipped: res.skipped,
+      totalRows: res.totalRows ?? 0,
+      importedIncome: res.importedIncome ?? 0,
+      importedExpense: res.importedExpense ?? 0,
+      duplicates: res.duplicates ?? 0,
+      skipped: res.skipped ?? 0,
     });
     router.refresh();
   };

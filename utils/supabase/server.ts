@@ -1,12 +1,18 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getSupabaseEnv } from '@/lib/supabaseEnv'
 
 export async function createClient() {
+  const { url, anonKey, isConfigured, isValidUrl } = getSupabaseEnv()
+  if (!isConfigured || !isValidUrl) {
+    throw new Error('Supabase env is not configured correctly: check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
+
   const cookieStore = await cookies()
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {

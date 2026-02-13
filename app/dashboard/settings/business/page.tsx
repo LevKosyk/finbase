@@ -68,11 +68,15 @@ export default function BusinessSettingsPage() {
             const user = await getUser();
             if (user && user.settings) {
                 setFopData({
-                    ...user.settings,
+                    legalName: user.settings.legalName || "",
+                    ipn: user.settings.ipn || "",
+                    group: user.settings.group ?? 3,
+                    address: user.settings.address || "",
                     city: user.settings.city || "",
                     street: user.settings.street || "",
                     houseNumber: user.settings.houseNumber || "",
                     zipCode: user.settings.zipCode || "",
+                    kveds: user.settings.kveds || "",
                     taxRatePercent: typeof user.settings.taxRate === "number" ? (user.settings.taxRate * 100).toString() : "",
                     fixedMonthlyTax: user.settings.fixedMonthlyTax?.toString() || "",
                     esvMonthly: user.settings.esvMonthly?.toString() || "",
@@ -138,12 +142,12 @@ export default function BusinessSettingsPage() {
 
     return (
         <MotionWrapper>
-            <div className="bg-white rounded-[2rem] border border-gray-200 shadow-sm p-8 relative overflow-hidden">
-                <div className="mb-10 pb-8 border-b border-gray-100">
+            <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm p-8 relative overflow-hidden">
+                <div className="mb-10 pb-8 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">Дані ФОП</h2>
-                            <p className="text-gray-500 text-sm mt-1">Детальні налаштування фізичної особи-підприємця.</p>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Дані ФОП</h2>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Детальні налаштування фізичної особи-підприємця.</p>
                         </div>
                         <ProfileExport />
                     </div>
@@ -172,11 +176,11 @@ export default function BusinessSettingsPage() {
                                 className="font-mono"
                             />
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700">Група оподаткування</label>
+                                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Група оподаткування</label>
                                 <select 
                                     value={fopData.group || 3}
                                     onChange={(e) => setFopData({...fopData, group: e.target.value})}
-                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
+                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
                                 >
                                     <option value="1">1 група</option>
                                     <option value="2">2 група</option>
@@ -187,11 +191,11 @@ export default function BusinessSettingsPage() {
                         </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-gray-700" />
 
                         {/* Tax Settings */}
                         <div className="space-y-6">
-                        <h3 className="font-bold text-gray-900">Податкові параметри</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100">Податкові параметри</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <Input 
                                 label="Ставка податку (%)"
@@ -224,11 +228,11 @@ export default function BusinessSettingsPage() {
                                 onChange={(e) => setFopData({...fopData, incomeLimit: e.target.value})}
                             />
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-700">Період звітності</label>
+                                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період звітності</label>
                                 <select 
                                     value={fopData.reportingPeriod || "quarterly"}
                                     onChange={(e) => setFopData({...fopData, reportingPeriod: e.target.value})}
-                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
+                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
                                 >
                                     <option value="monthly">Щомісяця</option>
                                     <option value="quarterly">Щокварталу</option>
@@ -254,11 +258,11 @@ export default function BusinessSettingsPage() {
                         </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-gray-700" />
 
                         {/* Address */}
                         <div className="space-y-6">
-                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                             <MapPin className="w-5 h-5 text-[var(--fin-primary)]" />
                             Адреса реєстрації
                         </h3>
@@ -299,11 +303,11 @@ export default function BusinessSettingsPage() {
                         </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-gray-700" />
 
                         {/* Document Data */}
                         <div className="space-y-6">
-                        <h3 className="font-bold text-gray-900">Реквізити для документів</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100">Реквізити для документів</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Input 
                                 label="IBAN"
@@ -345,35 +349,35 @@ export default function BusinessSettingsPage() {
                         />
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-gray-700" />
 
                         {/* Expense Dictionary */}
                         <div className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">Категорії витрат (довідник)</label>
+                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Категорії витрат (довідник)</label>
                             <textarea 
                                 rows={3} 
                                 placeholder="Офіс, Маркетинг, Транспорт..." 
                                 value={fopData.expenseCategories || ""}
                                 onChange={(e) => setFopData({...fopData, expenseCategories: e.target.value})}
-                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
+                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
                             ></textarea>
-                            <p className="text-xs text-gray-500">Розділяйте категорії комою або з нового рядка.</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Розділяйте категорії комою або з нового рядка.</p>
                         </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <hr className="border-gray-100 dark:border-gray-700" />
 
                         {/* KVEDs */}
                         <div className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-700">КВЕДи</label>
+                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">КВЕДи</label>
                             <textarea 
                                 rows={3} 
                                 placeholder="62.01, 73.11..." 
                                 value={fopData.kveds || ""}
                                 onChange={(e) => setFopData({...fopData, kveds: e.target.value})}
-                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
+                                className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all resize-none"
                             ></textarea>
                         </div>
                         </div>

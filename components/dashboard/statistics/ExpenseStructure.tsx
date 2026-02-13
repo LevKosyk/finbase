@@ -9,8 +9,8 @@ interface ExpenseStructureProps {
 export default function ExpenseStructure({ data }: ExpenseStructureProps) {
     if (!data || data.length === 0) {
         return (
-            <div className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm flex flex-col items-center justify-center h-[320px]">
-                 <p className="text-gray-400 font-medium">Немає витрат за цей період</p>
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-[24px] border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center justify-center h-[320px]">
+                 <p className="text-gray-400 dark:text-gray-500 font-medium">Немає витрат за цей період</p>
             </div>
         );
     }
@@ -18,8 +18,8 @@ export default function ExpenseStructure({ data }: ExpenseStructureProps) {
     const total = data.reduce((sum, item) => sum + item.value, 0);
 
     return (
-        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col h-[320px] hover:shadow-md transition-shadow duration-300">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Структура витрат</h3>
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-[320px] hover:shadow-md transition-shadow duration-300">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Структура витрат</h3>
             <div className="flex-1 flex gap-4">
                  <div className="w-1/2 relative h-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -41,8 +41,8 @@ export default function ExpenseStructure({ data }: ExpenseStructureProps) {
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-[-5px]">
-                        <p className="text-[10px] uppercase text-gray-400 font-bold">Всього</p>
-                        <p className="text-sm font-extrabold text-gray-900">{total.toLocaleString()} ₴</p>
+                        <p className="text-[10px] uppercase text-gray-400 dark:text-gray-500 font-bold">Всього</p>
+                        <p className="text-sm font-extrabold text-gray-900 dark:text-gray-100">{total.toLocaleString()} ₴</p>
                     </div>
                 </div>
                 
@@ -51,13 +51,13 @@ export default function ExpenseStructure({ data }: ExpenseStructureProps) {
                         <div key={i} className="flex items-center justify-between text-sm">
                              <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
-                                <span className="text-gray-600 font-medium truncate max-w-[80px]" title={item.name}>{item.name}</span>
+                                <span className="text-gray-600 dark:text-gray-300 font-medium truncate max-w-[80px]" title={item.name}>{item.name}</span>
                              </div>
-                             <span className="font-bold text-gray-900">{Math.round((item.value / total) * 100)}%</span>
+                             <span className="font-bold text-gray-900 dark:text-gray-100">{Math.round((item.value / total) * 100)}%</span>
                         </div>
                     ))}
                     {data.length > 4 && (
-                        <p className="text-xs text-gray-400 mt-1 text-center font-medium">+ ще {data.length - 4}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-center font-medium">+ ще {data.length - 4}</p>
                     )}
                 </div>
             </div>

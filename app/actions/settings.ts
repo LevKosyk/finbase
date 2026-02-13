@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { invalidateUserCache } from "@/lib/redis-cache";
 
 export async function updateFOPSettings(data: {
   legalName?: string;
@@ -46,6 +47,7 @@ export async function updateFOPSettings(data: {
         ...data,
       },
     });
+    await invalidateUserCache(user.id);
 
     revalidatePath("/dashboard/settings");
     return { success: true };
@@ -77,6 +79,7 @@ export async function updateNotificationSettings(data: {
             ...data
         }
     });
+    await invalidateUserCache(user.id);
     revalidatePath("/dashboard/settings");
     return { success: true };
   } catch (e) {
@@ -110,9 +113,10 @@ export async function updateProfile(data: {
                 avatarUrl: data.avatarUrl
             }
         });
+        await invalidateUserCache(user.id);
         revalidatePath("/dashboard/settings");
         return { success: true };
-    } catch (e) {
+    } catch {
         return { error: "Profile update failed" };
     }
 }

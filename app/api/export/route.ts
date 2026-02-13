@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import PDFDocument from "pdfkit";
 
 type ExportFormat = "csv" | "xlsx" | "json" | "pdf";
@@ -150,7 +150,7 @@ export async function GET(req: Request) {
 
   if (format === "xlsx") {
     const buffer = toXlsxBuffer(rows, type);
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${name}"`
@@ -160,7 +160,7 @@ export async function GET(req: Request) {
 
   const pdfTitle = type === "incomes" ? "Доходи" : type === "expenses" ? "Витрати" : "Профіль ФОП";
   const pdf = await toPdfBuffer(pdfTitle, rows);
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${name}"`

@@ -9,7 +9,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { DashboardStats } from "@/app/actions/dashboard";
+import type { DashboardStats } from "@/lib/types/dashboard";
 
 interface FinancialChartProps {
     data: DashboardStats['income']['history'];
@@ -17,13 +17,13 @@ interface FinancialChartProps {
 
 export default function FinancialChart({ data }: FinancialChartProps) {
   return (
-    <div className="bg-white rounded-[32px] p-6 md:p-8 border border-gray-100 shadow-sm h-full relative overflow-hidden group hover:shadow-md transition-all duration-300">
+    <div className="bg-white dark:bg-gray-900 rounded-[32px] p-6 md:p-8 border border-gray-100 dark:border-gray-700 shadow-sm h-full relative overflow-hidden group hover:shadow-md transition-all duration-300">
       <div className="flex items-center justify-between mb-8 relative z-10">
         <div>
-            <h3 className="text-lg font-bold text-gray-900">Фінансова картина</h3>
-            <p className="text-sm text-gray-400">Динаміка доходів та витрат</p>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Фінансова картина</h3>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Динаміка доходів та витрат</p>
         </div>
-        <div className="flex bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold text-gray-600">
+        <div className="flex bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300">
             Поточний рік
         </div>
       </div>
@@ -61,7 +61,7 @@ export default function FinancialChart({ data }: FinancialChartProps) {
                 }}
                 itemStyle={{ color: '#fff' }}
                 cursor={{ stroke: 'var(--fin-primary)', strokeWidth: 2, strokeDasharray: '5 5' }}
-                formatter={(value: any) => [`${Number(value).toLocaleString()} ₴`, 'Дохід']}
+                formatter={(value) => [`${Number(value ?? 0).toLocaleString()} ₴`, "Дохід"]}
             />
             <Area 
                 type="monotone" 

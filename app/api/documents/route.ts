@@ -202,7 +202,7 @@ export async function POST(req: Request) {
     rakhunok: "Рахунок",
   };
   const pdf = await toPdfBuffer(titleMap[type], rows);
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${name}"`

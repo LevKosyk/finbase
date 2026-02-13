@@ -45,6 +45,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!expense) return;
     setIsLoading(true);
     try {
       const result = await updateExpense(expense.id, {
@@ -65,7 +66,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !expense) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

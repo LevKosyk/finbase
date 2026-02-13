@@ -6,7 +6,8 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { importExpenses, type ExpenseImportRow } from "@/app/actions/expenses";
+import { importExpenses } from "@/app/actions/expenses";
+import type { ExpenseImportRow } from "@/lib/types/expenses";
 
 const headerMap: Record<string, keyof ExpenseImportRow> = {
   date: "date",
@@ -109,12 +110,12 @@ export default function ExpenseImport() {
       />
       <Button
         variant="secondary"
-        className="font-bold border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm text-gray-700 bg-white"
+        className="min-w-[132px]"
         leftIcon={<UploadCloud className="w-5 h-5" />}
         onClick={() => inputRef.current?.click()}
         isLoading={isLoading}
       >
-        <span className="hidden sm:inline">Імпорт CSV/XLSX</span>
+        Імпорт
       </Button>
     </>
   );

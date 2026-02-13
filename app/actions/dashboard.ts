@@ -3,37 +3,9 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 
-export interface DashboardStats {
-    income: {
-        total: number;
-        change: number; // percentage
-        history: { name: string; value: number }[];
-    };
-    expenses: {
-        total: number;
-        change: number;
-    };
-    tax: {
-        amount: number;
-        singleTax: number;
-        esv: number;
-        status: 'ok' | 'warning' | 'danger';
-        nextPaymentDate: string | null;
-    };
-    limit: {
-        current: number;
-        max: number; // 3rd group limit ~8.2m UAH
-        percent: number;
-    };
-    fop: {
-        group: number;
-        taxSystem: string;
-        reportingPeriod: string;
-    };
-}
-
 import { unstable_cache } from "next/cache";
 import { formatDateUA, getNextDueDate, getPeriodRange, getReportingPeriod, getStatusFromDueDate } from "@/lib/fop";
+import { cacheKey, withRedisCache } from "@/lib/redis-cache";
 
 export async function getDashboardStats() {
     const supabase = await createClient();
@@ -41,7 +13,8 @@ export async function getDashboardStats() {
 
     if (!user) return null;
 
-    return await unstable_cache(
+    const redisKey = cacheKey("user", user.id, "dashboard-stats");
+    return withRedisCache(redisKey, 120, async () => await unstable_cache(
         async () => {
             try {
                 // Fetch user settings for FOP group
@@ -153,7 +126,7 @@ export async function getDashboardStats() {
         },
         [`dashboard-stats-${user.id}`],
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 } 
-    )();
+    )());
 }
 
 export async function getReminders() {

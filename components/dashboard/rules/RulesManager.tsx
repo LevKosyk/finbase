@@ -6,8 +6,8 @@ import {
   createCategorizationRule,
   deleteCategorizationRule,
   updateCategorizationRule,
-  type CategorizationRuleInput,
 } from "@/app/actions/categorization-rules";
+import type { CategorizationRuleInput } from "@/lib/types/rules";
 import { useRouter } from "next/navigation";
 
 interface Rule {

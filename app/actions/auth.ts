@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { sendVerificationCode } from "@/app/actions/email";
+import { cacheKey, getCacheJson, hashToken, setCacheJson, invalidateUserCache } from "@/lib/redis-cache";
+import { Prisma } from "@prisma/client";
 
 function getSafeOrigin(unsafeOrigin: string | null) {
   if (process.env.NEXT_PUBLIC_SITE_URL) {
@@ -14,7 +16,6 @@ function getSafeOrigin(unsafeOrigin: string | null) {
   }
   if (!unsafeOrigin) return "http://localhost:3000";
   // Basic ASCII check, if it contains non-ascii, fallback to localhost or strip
-  // eslint-disable-next-line no-control-regex
   if (/[^\x00-\x7F]/.test(unsafeOrigin)) {
     console.warn("Detected non-ASCII origin, falling back to localhost:", unsafeOrigin);
     return "http://localhost:3000";
@@ -61,9 +62,10 @@ export async function signup(formData: FormData) {
   let supabaseAdmin;
   try {
       supabaseAdmin = createAdminClient();
-  } catch (e: any) {
-      console.error("Admin Client Error:", e.message);
-      return { error: "Server Configuration Error: " + e.message };
+  } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Unknown error";
+      console.error("Admin Client Error:", message);
+      return { error: "Server Configuration Error: " + message };
   }
 
   // 2. Generate Link/OTP manually (prevents default email)
@@ -188,6 +190,7 @@ export async function syncUser() {
         avatarUrl: user.user_metadata.avatar_url,
       },
     });
+    await invalidateUserCache(dbUser.id);
     return { success: true, user: dbUser };
   } catch (error) {
     console.error("Error syncing user:", error);
@@ -197,14 +200,35 @@ export async function syncUser() {
 
 export async function getUser() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     
     if(!user) return null;
 
     try {
+        const token = session?.access_token;
+        if (token) {
+            const tokenKey = cacheKey("auth", "session", hashToken(token));
+            const expires = session.expires_in && session.expires_in > 60 ? session.expires_in : 60;
+            await setCacheJson(tokenKey, { userId: user.id }, expires);
+        }
+
+        const includeRelations = {
+            settings: true,
+            subscription: true,
+            notifications: true,
+        } as const;
+        type AppUser = Prisma.UserGetPayload<{ include: typeof includeRelations }> | null;
+
+        const profileKey = cacheKey("user", user.id, "profile");
+        const cachedUser = await getCacheJson<AppUser>(profileKey);
+        if (cachedUser) {
+            return cachedUser;
+        }
+
         const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            include: { settings: true, subscription: true, notifications: true }
+            include: includeRelations
         });
         
         // If user is in Supabase but not in DB (e.g. verified but sync failed initially), try syncing now
@@ -214,12 +238,18 @@ export async function getUser() {
                 // Re-fetch with relations if needed, or just return basic user
                  const newDbUser = await prisma.user.findUnique({
                     where: { id: user.id },
-                    include: { settings: true, subscription: true, notifications: true }
+                    include: includeRelations
                 });
+                if (newDbUser) {
+                    await setCacheJson(profileKey, newDbUser, 180);
+                }
                 return newDbUser;
             }
         }
 
+        if (dbUser) {
+            await setCacheJson(profileKey, dbUser, 180);
+        }
         return dbUser;
     } catch (e) {
         console.error(e);

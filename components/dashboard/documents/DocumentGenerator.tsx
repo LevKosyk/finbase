@@ -85,10 +85,10 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 md:p-8 space-y-6">
+    <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm p-6 md:p-8 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Генератор документів</h2>
-        <p className="text-gray-500 mt-1">Автозаповнення реквізитів ФОП та експорт у файл.</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Генератор документів</h2>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Автозаповнення реквізитів ФОП та експорт у файл.</p>
       </div>
 
       {errors.length > 0 && (
@@ -104,11 +104,11 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Тип документу</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Тип документу</label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value as DocType)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           >
             {documentOptions.map((d) => (
               <option key={d.id} value={d.id}>{d.label}</option>
@@ -116,11 +116,11 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
           </select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Формат</label>
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Формат</label>
           <select
             value={format}
             onChange={(e) => setFormat(e.target.value as DocFormat)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           >
             <option value="pdf">PDF</option>
             <option value="json">JSON</option>
@@ -130,46 +130,46 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Період від</label>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період від</label>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Період до</label>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період до</label>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Номер</label>
-          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="DOC-001" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Номер</label>
+          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="DOC-001" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Сума</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="0.00" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Сума</label>
+          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="0.00" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Валюта</label>
-          <input value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Валюта</label>
+          <input value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
         </div>
       </div>
 
       {needsCounterparty && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Контрагент</label>
-            <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="Назва компанії/ПІБ" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Контрагент</label>
+            <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="Назва компанії/ПІБ" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">ІПН контрагента</label>
-            <input value={counterpartyTaxId} onChange={(e) => setCounterpartyTaxId(e.target.value)} placeholder="1234567890" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">ІПН контрагента</label>
+            <input value={counterpartyTaxId} onChange={(e) => setCounterpartyTaxId(e.target.value)} placeholder="1234567890" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
           </div>
         </div>
       )}
 
       <div className="space-y-2">
-        <label className="text-sm font-semibold text-gray-700">Опис</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Опис послуг або товару" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3" />
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Опис</label>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Опис послуг або товару" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
       </div>
 
       <Button onClick={handleExport} isLoading={isLoading}>

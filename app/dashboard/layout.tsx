@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import GlobalAI from "@/components/dashboard/GlobalAI";
 import { UIProvider } from "@/components/providers/UIProvider";
+import { AnimatePresence, motion } from "framer-motion";
 import { 
   CalendarDays,
   ChevronLeft, 
@@ -25,6 +26,19 @@ import {
   X 
 } from "lucide-react";
 
+const navItems = [
+  { name: 'Дашборд', href: '/dashboard', icon: LayoutDashboard, exact: true },
+  { name: 'Доходи', href: '/dashboard/income', icon: Wallet },
+  { name: 'Витрати', href: '/dashboard/expenses', icon: Receipt },
+  { name: 'Виписка', href: '/dashboard/bank', icon: Landmark },
+  { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal },
+  { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse },
+  { name: 'Документи', href: '/dashboard/documents', icon: FileText },
+  { name: 'Календар', href: '/dashboard/calendar', icon: CalendarDays },
+  { name: 'Статистика', href: '/dashboard/statistics', icon: PieChart },
+  { name: 'Налаштування', href: '/dashboard/settings', icon: Settings },
+] as const;
+
 export default function DashboardLayout({
   children,
 }: {
@@ -40,23 +54,15 @@ export default function DashboardLayout({
     router.push("/login");
   };
 
-  const navItems = [
-    { name: 'Дашборд', href: '/dashboard', icon: LayoutDashboard, exact: true },
-    { name: 'Доходи', href: '/dashboard/income', icon: Wallet },
-    { name: 'Витрати', href: '/dashboard/expenses', icon: Receipt },
-    { name: 'Виписка', href: '/dashboard/bank', icon: Landmark },
-    { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal },
-    { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse },
-    { name: 'Документи', href: '/dashboard/documents', icon: FileText },
-    { name: 'Календар', href: '/dashboard/calendar', icon: CalendarDays },
-    { name: 'Статистика', href: '/dashboard/statistics', icon: PieChart },
-    { name: 'Налаштування', href: '/dashboard/settings', icon: Settings },
-  ];
-
   const isLinkActive = (item: { href: string, exact?: boolean }) => {
      if (item.exact) return pathname === item.href;
      return pathname.startsWith(item.href);
   };
+
+  // Prefetch dashboard routes to make navigation near-instant.
+  useEffect(() => {
+    navItems.forEach((item) => router.prefetch(item.href));
+  }, [router]);
 
   return (
     <UIProvider>
@@ -185,7 +191,17 @@ export default function DashboardLayout({
           }`}
         >
           <div className="max-w-7xl mx-auto">
-              {children}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={pathname}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
         

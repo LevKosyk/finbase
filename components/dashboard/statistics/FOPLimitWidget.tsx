@@ -27,11 +27,11 @@ export default function FOPLimitWidget({ stats }: { stats: FOPStats['limit'] }) 
     };
 
     return (
-        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                     <h3 className="text-lg font-bold text-gray-900">Ліміт ФОП</h3>
-                     <p className="text-sm text-gray-500 mt-1">Моніторинг річного ліміту доходу</p>
+                     <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Ліміт ФОП</h3>
+                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Моніторинг річного ліміту доходу</p>
                 </div>
                 <div className={`p-2 rounded-xl ${bgMap[status]}`}>
                     {status === 'ok' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
@@ -39,18 +39,18 @@ export default function FOPLimitWidget({ stats }: { stats: FOPStats['limit'] }) 
             </div>
 
             <div className="mb-2 flex justify-between text-sm font-bold">
-                <span className="text-gray-600">Використано: {current.toLocaleString()} ₴</span>
-                <span className="text-gray-400">Ліміт: {max > 0 ? `${max.toLocaleString()} ₴` : "не задано"}</span>
+                <span className="text-gray-600 dark:text-gray-300">Використано: {current.toLocaleString()} ₴</span>
+                <span className="text-gray-400 dark:text-gray-500">Ліміт: {max > 0 ? `${max.toLocaleString()} ₴` : "не задано"}</span>
             </div>
 
-            <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden mb-4">
+            <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mb-4">
                 <div 
                     className={`h-full rounded-full transition-all duration-1000 ease-out ${colorMap[status]}`}
                     style={{ width: `${max > 0 ? Math.min(percent, 100) : 0}%` }}
                 />
             </div>
             
-             <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-xl">
+             <div className="flex items-start gap-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
                 <Info className="w-4 h-4 shrink-0 mt-0.5" />
                 <p>
                     {max > 0

@@ -1,17 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getSupabaseEnv } from '@/lib/supabaseEnv'
 
 export async function updateSession(request: NextRequest) {
+  const { url, anonKey, isConfigured, isValidUrl } = getSupabaseEnv()
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  if (!isConfigured || !isValidUrl) {
+    return response
+  }
+
   // Create a Supabase client configured to use cookies
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
@@ -33,7 +40,13 @@ export async function updateSession(request: NextRequest) {
   )
 
   // Refresh session if expired - required for Server Components
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch {
+    // Supabase can be temporarily unavailable or misconfigured in local env.
+    // Do not break all routes from middleware in this case.
+    return response
+  }
 
   return response
 }

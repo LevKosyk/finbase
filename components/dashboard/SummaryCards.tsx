@@ -1,5 +1,4 @@
 import { 
-  TrendingUp, 
   TrendingDown, 
   Wallet, 
   CreditCard, 
@@ -7,7 +6,7 @@ import {
   ArrowUpRight,
   ArrowDownRight
 } from "lucide-react";
-import { DashboardStats } from "@/app/actions/dashboard";
+import type { DashboardStats } from "@/lib/types/dashboard";
 
 interface SummaryCardsProps {
     stats: DashboardStats;
@@ -23,8 +22,7 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
         change: income.change,
         isPositive: true,
         icon: Wallet,
-        color: "bg-emerald-500",
-        lightColor: "bg-emerald-50 text-emerald-700"
+        lightColor: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
     },
     {
         label: "Витрати",
@@ -32,24 +30,21 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
         change: expenses.change,
         isPositive: false, // spending went down is good usually, but visually red/green depends on context. Let's say spending change positive means increased spending (bad)
         icon: CreditCard,
-        color: "bg-blue-500",
-        lightColor: "bg-blue-50 text-blue-700"
+        lightColor: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
     },
     {
         label: "Податки до сплати",
         value: tax.amount,
         subtext: tax.nextPaymentDate ? `Сплатити до ${tax.nextPaymentDate}` : "Заповніть налаштування податків",
         icon: TrendingDown,
-        color: "bg-orange-500",
-        lightColor: "bg-orange-50 text-orange-700"
+        lightColor: "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
     },
     {
         label: "Залишок ліміту",
         value: Math.max(0, limit.max - limit.current),
         subtext: limit.max > 0 ? `${limit.percent.toFixed(1)}% використано` : "Ліміт не задано",
         icon: AlertTriangle,
-        color: "bg-amber-500",
-        lightColor: "bg-amber-50 text-amber-700",
+        lightColor: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
         isLimit: true
     }
   ];
@@ -57,41 +52,40 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         {cards.map((card, idx) => (
-            <div key={idx} className="relative overflow-hidden bg-white/60 backdrop-blur-xl rounded-[32px] p-8 border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group hover:-translate-y-1">
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${card.change && card.change >= 0 ? 'from-green-500/5' : 'from-blue-500/5'} to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:scale-150 transition-transform duration-700`}></div>
-                
-                <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${card.lightColor} group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
-                            <card.icon className="w-7 h-7" />
-                        </div>
-                        {card.change !== undefined && (
-                            <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${card.change >= 0 ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
-                                {card.change >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                                {Math.abs(card.change)}%
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div>
-                         <p className="text-gray-500 text-sm font-semibold mb-2 tracking-wide uppercase">{card.label}</p>
-                         <h3 className="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
-                            {typeof card.value === 'number' ? card.value.toLocaleString('uk-UA') + ' ₴' : card.value}
-                         </h3>
-                         {card.subtext && (
-                             <div className="mt-4">
-                                {card.isLimit && limit.max > 0 && (
-                                     <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                                         <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${Math.min(100, stats.limit.percent)}%` }}></div>
-                                     </div>
-                                )}
-                                 <p className="text-xs font-bold text-gray-400 flex items-center gap-2">
-                                     {card.subtext}
-                                 </p>
-                             </div>
-                         )}
-                    </div>
+            <div key={idx} className="bg-white dark:bg-gray-900 rounded-[32px] p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex justify-between items-start mb-5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.lightColor}`}>
+                  <card.icon className="w-6 h-6" />
                 </div>
+                {card.change !== undefined && (
+                  <div
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                      card.change >= 0
+                        ? "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-300"
+                        : "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300"
+                    }`}
+                  >
+                    {card.change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {Math.abs(card.change)}%
+                  </div>
+                )}
+              </div>
+
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-bold mb-1">{card.label}</p>
+              <h3 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                {typeof card.value === "number" ? `${card.value.toLocaleString("uk-UA")} ₴` : card.value}
+              </h3>
+
+              {card.subtext && (
+                <div className="mt-3">
+                  {card.isLimit && limit.max > 0 && (
+                    <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mb-2">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, stats.limit.percent)}%` }} />
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{card.subtext}</p>
+                </div>
+              )}
             </div>
         ))}
     </div>

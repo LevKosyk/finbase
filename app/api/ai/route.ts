@@ -1,164 +1,174 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@supabase/supabase-js";
+import { cacheKey, getCacheJson, setCacheJson } from "@/lib/redis-cache";
+import { enforceRateLimit, hashString, sanitizeText } from "@/lib/security";
+import { getSupabaseEnv } from "@/lib/supabaseEnv";
 
-// Initialize Supabase Admin client to verify tokens/users if needed
-// Or better, use the cookies/headers from the request if using @supabase/ssr
-// For now, we'll try to get the user from the request headers (Authorization: Bearer <token>)
-// or just trust the client-side user ID (NOT SECURE - MVP only?)
-// user requested "Check on server", so we MUST verify.
-// We will use standard supabase-js with the anon key and the user's access token passed in header.
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+type ChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
 
 const SYSTEM_PROMPT = `
-Ты — AI-помощник веб-приложения Finbase.
-
-Finbase — сервис для ФОП 3 группы в Украине:
-- учёт доходов
-- расчёт налогов (5% + ЕСВ)
-- квартальные отчёты
-- подписка free / pro
-
-Правила:
-- Отвечай ТОЛЬКО по Finbase и ФОП 3 группы
-- Не давай юридических консультаций
-- Не придумывай законы
-- Если вопрос не по теме — откажи
-- Говори простым языком
+Ти — AI-помічник Finbase для ФОП в Україні.
+- Відповідай стисло, по суті, українською.
+- Не вигадуй законодавство, якщо не впевнений — зазнач це.
+- Не надавай персоналізованих юридичних гарантій.
 `;
 
-const URGENT_LAW_CONTEXT = `
-Контекст законодательства:
-- ФОП 3 группы платит 5% с дохода
-- ЕСВ платится отдельно (фиксированный)
-- Отчётность — поквартально
-- Доход — деньги, фактически полученные
+const LAW_CONTEXT = `
+Базовий контекст:
+- Для ФОП 3 групи часто застосовують ставку 5% (без ПДВ) або 3% (з ПДВ).
+- ЄСВ сплачується окремо.
+- Звітність залежить від налаштувань та поточних правил.
 `;
+
+function normalizeMessages(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const role = (item as { role?: string }).role;
+      const content = (item as { content?: string }).content;
+      if (!role || !content) return null;
+      if (!["system", "user", "assistant"].includes(role)) return null;
+      return {
+        role: role as ChatMessage["role"],
+        content: sanitizeText(String(content), 1800),
+      };
+    })
+    .filter((item): item is ChatMessage => Boolean(item))
+    .slice(-12);
+}
+
+async function resolveUser(req: Request) {
+  const { url, anonKey, isConfigured, isValidUrl } = getSupabaseEnv();
+  if (!isConfigured || !isValidUrl) return { userId: null as string | null, userPlan: "guest" };
+
+  const cookieStore = await cookies();
+  const serverSupabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll() {},
+    },
+  });
+
+  const { data: serverData } = await serverSupabase.auth.getUser();
+  let userId = serverData.user?.id || null;
+
+  // Fallback for explicit bearer token (mobile-like clients).
+  if (!userId) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice("Bearer ".length).trim();
+      if (token) {
+        const supabase = createSupabaseClient(url, anonKey);
+        const { data } = await supabase.auth.getUser(token);
+        userId = data.user?.id || null;
+      }
+    }
+  }
+
+  if (!userId) return { userId: null as string | null, userPlan: "guest" };
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { subscription: true },
+  });
+
+  return {
+    userId,
+    userPlan: dbUser?.subscription?.plan?.toLowerCase() || "free",
+  };
+}
 
 export async function POST(req: Request) {
   try {
-    const { messages, currentPath } = await req.json();
-    const authHeader = req.headers.get("Authorization");
+    const body = (await req.json()) as { messages?: unknown; currentPath?: unknown };
+    const messages = normalizeMessages(body?.messages);
+    const currentPath = typeof body?.currentPath === "string" ? sanitizeText(body.currentPath, 120) : "";
 
-    let userId: string | null = null;
-    let userPlan = "guest";
-
-    // 1. Authenticate User
-    if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      
-      if (user && !error) {
-        userId = user.id;
-        // Fetch user plan and other details from internal DB
-        const dbUser = await prisma.user.findUnique({
-          where: { id: userId },
-          include: { subscription: true, incomes: true }
-        });
-        
-        if (dbUser) {
-           userPlan = dbUser.subscription?.plan?.toLowerCase() || "free";
-        }
-      }
+    if (messages.length === 0) {
+      return NextResponse.json({ error: "Empty messages" }, { status: 400 });
     }
 
-    // 2. Check & Update Limits
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { userId, userPlan } = await resolveUser(req);
+    const ip = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim();
 
-    const usage = await prisma.aiUsage.findUnique({
-      where: {
-        userId_date: {
-          userId: userId || "guest", // careful with guest handling in unique constraint
-          date: today
-        }
-      }
-    });
-
-    const currentUsage = usage?.count || 0;
-    
-    // Limits
-    // Guest: 3, User: 20, Pro: 50
-    let limit = 3;
-    if (userId) {
-        if (userPlan === "pro") limit = 50;
-        else limit = 20;
-    }
-
-    if (currentUsage >= limit) {
+    const dailyLimit = !userId ? 3 : userPlan === "pro" ? 80 : 30;
+    const rateScope = userId || `guest:${ip}`;
+    const daily = await enforceRateLimit(`ai:daily:${rateScope}`, dailyLimit, 86400);
+    if (!daily.allowed) {
       return NextResponse.json(
-        { error: "Daily limit exceeded. " + (userId ? "Upgrade to Pro for more." : "Sign up for more.") }, 
+        { error: "Daily limit exceeded. Upgrade plan or try tomorrow." },
         { status: 429 }
       );
     }
 
-    // Increment Usage
-    // Note: Concurrency issue possible here but ok for MVP
-    await prisma.aiUsage.upsert({
-      where: {
-        userId_date: {
-          userId: userId || "guest",
-          date: today
-        }
-      },
-      update: {
-        count: { increment: 1 }
-      },
-      create: {
-        userId: userId || "guest",
-        date: today,
-        count: 1
-      }
-    });
-
-
-    // 3. Build Context
-    let userContext = `Контекст пользователя:\nПлан: ${userPlan}`;
-    if (userId) {
-        // We can add more specific info here if needed
-        // For now, keeping it simple as per spec
-        const incomeCount = await prisma.income.count({ where: { userId } });
-        userContext += `\nДоходов в системе: ${incomeCount}`;
+    const burst = await enforceRateLimit(`ai:burst:${rateScope}`, 12, 60);
+    if (!burst.allowed) {
+      return NextResponse.json({ error: "Too many requests. Try in a minute." }, { status: 429 });
     }
 
-    const screenContext = currentPath ? `\nПользователь находится на странице: ${currentPath}` : "";
+    const contextIncomeCount = userId
+      ? await prisma.income.count({ where: { userId } })
+      : 0;
 
-    const finalMessages = [
+    const finalMessages: ChatMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "system", content: URGENT_LAW_CONTEXT },
-      { role: "system", content: userContext + screenContext },
-      ...messages
+      { role: "system", content: LAW_CONTEXT },
+      {
+        role: "system",
+        content: sanitizeText(
+          `Контекст: plan=${userPlan}; income_count=${contextIncomeCount}; page=${currentPath || "unknown"}`,
+          300
+        ),
+      },
+      ...messages,
     ];
 
-    // 4. Call OpenRouter
+    const responseHash = hashString(JSON.stringify(finalMessages));
+    const responseKey = cacheKey("ai", userId || "guest", responseHash);
+    const cached = await getCacheJson<unknown>(responseKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterKey) {
+      return NextResponse.json({ error: "AI provider key missing" }, { status: 500 });
+    }
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${openrouterKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
-        temperature: 0.25,
+        temperature: 0.2,
         messages: finalMessages,
-      })
+      }),
     });
 
     if (!response.ok) {
-        const errText = await response.text();
-        console.error("OpenRouter Error:", errText);
-        return NextResponse.json({ error: "AI Service Unavailable" }, { status: 502 });
+      const errText = await response.text();
+      console.error("OpenRouter Error:", errText);
+      return NextResponse.json({ error: "AI Service Unavailable" }, { status: 502 });
     }
 
     const data = await response.json();
+    await setCacheJson(responseKey, data, 120);
     return NextResponse.json(data);
-
   } catch (error) {
-    console.error("API Error:", error);
+    console.error("AI route error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+

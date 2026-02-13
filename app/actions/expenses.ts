@@ -4,22 +4,10 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
+import type { ExpenseData, ExpenseImportRow } from "@/lib/types/expenses";
+import { cacheKey, invalidateUserCache, withRedisCache } from "@/lib/redis-cache";
 
-export type ExpenseData = {
-  amount: number;
-  category: string;
-  date: Date;
-  description?: string;
-};
-
-export type ExpenseImportRow = {
-  amount: number;
-  category: string;
-  date: string;
-  description?: string;
-};
-
-export const DEFAULT_EXPENSE_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   "Офіс",
   "Маркетинг",
   "Транспорт",
@@ -54,7 +42,8 @@ export async function createExpense(data: ExpenseData) {
       }
     });
     revalidatePath("/dashboard/expenses");
-    revalidateTag("dashboard-stats");
+    revalidateTag("dashboard-stats", "max");
+    await invalidateUserCache(user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to create expense:", error);
@@ -67,11 +56,14 @@ export async function getExpenseCategories() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return DEFAULT_EXPENSE_CATEGORIES;
 
-  const settings = await prisma.fOPSettings.findUnique({
-    where: { userId: user.id },
-    select: { expenseCategories: true }
+  const key = cacheKey("user", user.id, "expense-categories");
+  return withRedisCache(key, 600, async () => {
+    const settings = await prisma.fOPSettings.findUnique({
+      where: { userId: user.id },
+      select: { expenseCategories: true }
+    });
+    return parseExpenseCategories(settings?.expenseCategories);
   });
-  return parseExpenseCategories(settings?.expenseCategories);
 }
 
 export async function updateExpense(id: string, data: Partial<ExpenseData>) {
@@ -86,6 +78,7 @@ export async function updateExpense(id: string, data: Partial<ExpenseData>) {
       data
     });
     revalidatePath("/dashboard/expenses");
+    await invalidateUserCache(user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to update expense:", error);
@@ -104,7 +97,8 @@ export async function deleteExpense(id: string) {
       where: { id, userId: user.id }
     });
     revalidatePath("/dashboard/expenses");
-    revalidateTag("dashboard-stats");
+    revalidateTag("dashboard-stats", "max");
+    await invalidateUserCache(user.id);
     return { success: true };
   } catch (error) {
     console.error("Failed to delete expense:", error);
@@ -151,10 +145,13 @@ export async function getExpenses(searchParams?: {
       if (searchParams.maxAmount) filters.amount.lte = parseFloat(searchParams.maxAmount);
     }
 
-    return await prisma.expense.findMany({
-      where: filters,
-      orderBy: { date: "desc" },
-      take: 100
+    const key = cacheKey("user", user.id, "expenses", JSON.stringify(searchParams || {}));
+    return withRedisCache(key, 90, async () => {
+      return prisma.expense.findMany({
+        where: filters,
+        orderBy: { date: "desc" },
+        take: 100
+      });
     });
   } catch (error) {
     console.error("Error fetching expenses:", error);
@@ -168,7 +165,8 @@ export async function getExpenseStats() {
 
   if (!user) return { total: 0, change: 0, average: 0, count: 0 };
 
-  return await unstable_cache(
+  const redisKey = cacheKey("user", user.id, "expense-stats");
+  return withRedisCache(redisKey, 120, async () => await unstable_cache(
     async () => {
       try {
         const expenses = await prisma.expense.findMany({
@@ -211,7 +209,7 @@ export async function getExpenseStats() {
     },
     [`expense-stats-${user.id}`],
     { tags: ["dashboard-stats", `user-${user.id}`], revalidate: 3600 }
-  )();
+  )());
 }
 
 export async function importExpenses(rows: ExpenseImportRow[]) {
@@ -240,7 +238,8 @@ export async function importExpenses(rows: ExpenseImportRow[]) {
 
     await prisma.expense.createMany({ data: payload });
     revalidatePath("/dashboard/expenses");
-    revalidateTag("dashboard-stats");
+    revalidateTag("dashboard-stats", "max");
+    await invalidateUserCache(user.id);
     return { success: true, count: payload.length };
   } catch (error) {
     console.error("Failed to import expenses:", error);
