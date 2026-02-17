@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Plus, X } from "lucide-react";
 import { createExpense, getExpenseCategories } from "@/app/actions/expenses";
+import { emitDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
+import { useToast } from "@/components/providers/ToastProvider";
+import { enqueueOffline } from "@/lib/offline-queue";
+import { useSWRConfig } from "swr";
 
 export default function AddExpenseModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>(["Інше"]);
+  const toast = useToast();
+  const { mutate } = useSWRConfig();
 
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
@@ -27,23 +33,71 @@ export default function AddExpenseModal() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const tempId = `temp-expense-${Date.now()}`;
+    const formData = {
+      amount: parseFloat(amount),
+      category,
+      date: new Date(date),
+      description
+    };
+    const optimisticRow: ExpenseRow = {
+      id: tempId,
+      amount: formData.amount,
+      category: formData.category,
+      date: formData.date,
+      description: formData.description || null
+    };
+    emitDashboardEvent("expense:create:optimistic", { row: optimisticRow });
     try {
-      const result = await createExpense({
-        amount: parseFloat(amount),
-        category,
-        date: new Date(date),
-        description
-      });
-      if (result.success) {
+      if (!navigator.onLine) {
+        enqueueOffline({ type: "expense.create", payload: formData as unknown as Record<string, unknown> });
         setIsOpen(false);
         setAmount("");
         setCategory(categories[0] || "Інше");
         setDescription("");
+        toast.info({ title: "Офлайн: витрату додано в чергу", description: "Синхронізується автоматично при відновленні мережі." });
+        return;
+      }
+
+      const result = await createExpense(formData);
+      if (result.success && result.expense) {
+        emitDashboardEvent("expense:create:confirm", { tempId, row: result.expense });
+        setIsOpen(false);
+        setAmount("");
+        setCategory(categories[0] || "Інше");
+        setDescription("");
+        toast.success({ title: "Витрату додано" });
+        void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
       } else {
-        alert("Помилка при створенні");
+        emitDashboardEvent("expense:create:rollback", { tempId });
+        try {
+          const apiRes = await fetch("/api/expenses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+          });
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            emitDashboardEvent("expense:create:confirm", { tempId, row: json.expense });
+            setIsOpen(false);
+            setAmount("");
+            setCategory(categories[0] || "Інше");
+            setDescription("");
+            toast.success({ title: "Витрату додано" });
+            void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+          } else {
+            toast.error({ title: "Помилка при створенні витрати", description: result.error || "Спробуйте ще раз." });
+          }
+        } catch {
+          enqueueOffline({ type: "expense.create", payload: formData as unknown as Record<string, unknown> });
+          setIsOpen(false);
+          toast.info({ title: "Офлайн: витрату додано в чергу" });
+        }
       }
     } catch (error) {
+      emitDashboardEvent("expense:create:rollback", { tempId });
       console.error(error);
+      toast.error({ title: "Помилка при створенні витрати" });
     } finally {
       setIsLoading(false);
     }

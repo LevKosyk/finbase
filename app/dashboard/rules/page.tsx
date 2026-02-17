@@ -1,7 +1,22 @@
 import RulesManager from "@/components/dashboard/rules/RulesManager";
 import { getCategorizationRules } from "@/app/actions/categorization-rules";
+import DataState from "@/components/ui/DataState";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export default async function RulesPage() {
+  const enabled = await isFeatureEnabled("categorization_rules");
+  if (!enabled) {
+    return (
+      <div className="max-w-7xl mx-auto pb-12">
+        <DataState
+          variant="empty"
+          title="Модуль правил категоризації вимкнено"
+          description="Адміністратор тимчасово вимкнув цей модуль через feature flag."
+        />
+      </div>
+    );
+  }
+
   const rules = await getCategorizationRules();
 
   return (

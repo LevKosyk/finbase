@@ -8,6 +8,11 @@ import {
   normalizeDateInput,
   validateDocumentProfile,
 } from "@/lib/compliance";
+import { logAuditEvent } from "@/lib/audit-log";
+import { documentRequestSchema } from "@/lib/validation";
+import { measureAction } from "@/lib/performance";
+import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
+import { enforceRateLimit } from "@/lib/security";
 
 interface DocumentRequest {
   type: DocumentType;
@@ -20,6 +25,9 @@ interface DocumentRequest {
   description?: string;
   amount?: number;
   currency?: string;
+  templateId?: string;
+  preview?: boolean;
+  sourceGenerationId?: string;
 }
 
 type TemplateRow = Record<string, string | number>;
@@ -97,24 +105,55 @@ function fileName(type: DocumentType, format: DocumentFormat) {
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json()) as DocumentRequest;
+  return measureAction("api.documents.POST", async () => {
+  const startedAt = Date.now();
+  const rawBody = (await req.json()) as DocumentRequest;
+  const parsedBody = documentRequestSchema.safeParse(rawBody);
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: "Invalid document payload" }, { status: 400 });
+  }
+  const body = parsedBody.data;
   const type = body.type;
   const format = body.format || "pdf";
 
-  if (!type || !["declaration", "payment", "act", "invoice", "rakhunok"].includes(type)) {
-    return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
-  }
-  if (!["pdf", "json"].includes(format)) {
-    return NextResponse.json({ error: "Invalid export format" }, { status: 400 });
+  if (!body.preview) {
+    const access = await ensureSensitiveActionAccess({
+      action: "api.documents.export",
+      requireRecentReauth: true,
+      requireTwoFactor: true,
+    });
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error, code: access.code }, { status: 403 });
+    }
   }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ip = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
+  const burst = await enforceRateLimit(`documents:burst:${user.id}:${ip}`, 10, 60);
+  if (!burst.allowed) {
+    await logAuditEvent({
+      userId: user.id,
+      action: "security.alert.documents_rate_limited",
+      entityType: "security",
+      metadata: { ip },
+    });
+    return NextResponse.json({ error: "Too many document requests" }, { status: 429 });
+  }
+  const daily = await enforceRateLimit(`documents:daily:${user.id}`, 200, 60 * 60 * 24);
+  if (!daily.allowed) {
+    await logAuditEvent({
+      userId: user.id,
+      action: "security.alert.documents_daily_limit",
+      entityType: "security",
+    });
+    return NextResponse.json({ error: "Daily document limit exceeded" }, { status: 429 });
+  }
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    include: { settings: true }
+    select: { email: true, settings: true }
   });
   if (!dbUser?.settings) {
     return NextResponse.json({ error: "FOP settings not found" }, { status: 400 });
@@ -127,7 +166,7 @@ export async function POST(req: Request) {
   const to = normalizeDateInput(body.dateTo) || new Date();
   to.setHours(23, 59, 59, 999);
   const incomes = await prisma.income.findMany({
-    where: { userId: user.id, date: { gte: from, lte: to } }
+    where: { userId: user.id, deletedAt: null, date: { gte: from, lte: to } }
   });
   const totalIncome = incomes.reduce((acc, i) => acc + i.amount, 0);
 
@@ -185,13 +224,57 @@ export async function POST(req: Request) {
   const rows = buildDocumentRows(type, base, extra);
   const name = fileName(type, format);
 
+  let templateVersion: number | null = null;
+  if (body.templateId) {
+    const tpl = await prisma.documentTemplate.findFirst({
+      where: { id: body.templateId, userId: user.id },
+      select: { version: true },
+    });
+    templateVersion = tpl?.version || null;
+  }
+
+  if (body.preview) {
+    const response = NextResponse.json({
+      ok: true,
+      preview: rows,
+      name,
+    });
+    response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    return response;
+  }
+
+  const generation = await prisma.documentGeneration.create({
+    data: {
+      userId: user.id,
+      type,
+      format,
+      number,
+      payloadJson: {
+        ...body,
+        dateFrom: body.dateFrom || null,
+        dateTo: body.dateTo || null,
+        amount: amount || null,
+      },
+      templateId: body.templateId || null,
+      templateVersion,
+    },
+  });
+  await logAuditEvent({
+    userId: user.id,
+    action: "document.export",
+    entityType: type,
+    metadata: { format, number, fileName: name, amount, generationId: generation.id, sourceGenerationId: body.sourceGenerationId || null },
+  });
+
   if (format === "json") {
-    return new NextResponse(JSON.stringify(rows, null, 2), {
+    const response = new NextResponse(JSON.stringify(rows, null, 2), {
       headers: {
         "Content-Type": "application/json",
         "Content-Disposition": `attachment; filename="${name}"`
       }
     });
+    response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    return response;
   }
 
   const titleMap: Record<DocumentType, string> = {
@@ -202,10 +285,13 @@ export async function POST(req: Request) {
     rakhunok: "Рахунок",
   };
   const pdf = await toPdfBuffer(titleMap[type], rows);
-  return new NextResponse(new Uint8Array(pdf), {
+  const response = new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${name}"`
     }
   });
+  response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+  return response;
+  }, { budgetMs: 1200 });
 }

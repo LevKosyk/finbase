@@ -3,13 +3,15 @@
 import { CheckCircle2, Star, Shield, Zap } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function PlansPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const toast = useToast();
 
   const handleSubscribe = (planName: string) => {
     // This will be replaced with real payment logic later
-    alert(`Перехід до оплати плану ${planName}... (Integrate Payment Provider Here)`);
+    toast.info({ title: `Перехід до оплати плану ${planName}`, description: "Підключіть платіжний провайдер для завершення." });
   };
 
   return (

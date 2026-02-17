@@ -1,10 +1,11 @@
-import ExpenseList from "@/components/dashboard/expenses/ExpenseList";
-import ExpenseStats from "@/components/dashboard/expenses/ExpenseStats";
-import ExpenseFilters from "@/components/dashboard/expenses/ExpenseFilters";
 import ExpenseImport from "@/components/dashboard/expenses/ExpenseImport";
 import ExpenseExport from "@/components/dashboard/expenses/ExpenseExport";
 import AddExpenseModal from "@/components/dashboard/expenses/AddExpenseModal";
-import { getExpenseStats, getExpenses } from "@/app/actions/expenses";
+import { getDeletedExpenses, getExpenseStats, getExpenses } from "@/app/actions/expenses";
+import DataState from "@/components/ui/DataState";
+import { isDynamicServerUsageError } from "@/lib/is-dynamic-server-error";
+import ExpensesLiveSection from "@/components/dashboard/expenses/ExpensesLiveSection";
+import ExpenseTrash from "@/components/dashboard/expenses/ExpenseTrash";
 
 export default async function ExpensesPage({
   searchParams,
@@ -19,10 +20,34 @@ export default async function ExpensesPage({
   const minAmount = typeof resolvedSearchParams?.minAmount === "string" ? resolvedSearchParams.minAmount : undefined;
   const maxAmount = typeof resolvedSearchParams?.maxAmount === "string" ? resolvedSearchParams.maxAmount : undefined;
 
-  const [expenses, stats] = await Promise.all([
-    getExpenses({ q, category, startDate, endDate, minAmount, maxAmount }),
-    getExpenseStats()
-  ]);
+  let expenses: Awaited<ReturnType<typeof getExpenses>> = [];
+  let deletedExpenses: Awaited<ReturnType<typeof getDeletedExpenses>> = [];
+  let stats: Awaited<ReturnType<typeof getExpenseStats>> = {
+    total: 0,
+    change: 0,
+    average: 0,
+    count: 0,
+  };
+
+  try {
+    [expenses, stats, deletedExpenses] = await Promise.all([
+      getExpenses({ q, category, startDate, endDate, minAmount, maxAmount }),
+      getExpenseStats(),
+      getDeletedExpenses(),
+    ]);
+  } catch (error) {
+    if (isDynamicServerUsageError(error)) throw error;
+    console.error("Expenses page error:", error);
+    return (
+      <div className="pb-12 max-w-6xl mx-auto">
+        <DataState
+          variant="error"
+          title="Не вдалося завантажити витрати"
+          description="Сталася помилка під час завантаження даних. Спробуйте ще раз."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-12 max-w-6xl mx-auto">
@@ -38,9 +63,12 @@ export default async function ExpensesPage({
         </div>
       </div>
 
-      <ExpenseStats stats={stats} />
-      <ExpenseFilters />
-      <ExpenseList initialExpenses={expenses} />
+      <ExpensesLiveSection
+        initialExpenses={expenses}
+        initialStats={stats}
+        query={{ q, category, startDate, endDate, minAmount, maxAmount }}
+      />
+      <ExpenseTrash items={deletedExpenses} />
     </div>
   );
 }

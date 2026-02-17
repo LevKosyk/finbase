@@ -13,11 +13,14 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabaseClient";
 import MotionWrapper from "@/components/MotionWrapper";
+import { useToast } from "@/components/providers/ToastProvider";
+import Image from "next/image";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
   
   type UserProfileData = {
     id: string;
@@ -53,8 +56,8 @@ export default function SettingsPage() {
           avatarUrl: userData.avatarUrl ?? undefined
       });
       setSaving(false);
-      if(res.success) alert("Профіль оновлено!");
-      else alert("Помилка оновлення");
+      if(res.success) toast.success({ title: "Профіль оновлено" });
+      else toast.error({ title: "Помилка оновлення профілю" });
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,7 +80,7 @@ export default function SettingsPage() {
                    setUserData((prev) => (prev ? { ...prev, avatarUrl: ev.target?.result as string } : prev));
                };
                reader.readAsDataURL(file);
-               alert("Upload failed (bucket missing?), using local preview.");
+               toast.info({ title: "Storage недоступний", description: "Використано локальний preview аватара." });
           } else {
              const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
              setUserData((prev) => (prev ? { ...prev, avatarUrl: publicUrl } : prev));
@@ -117,7 +120,14 @@ export default function SettingsPage() {
                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border-4 border-white dark:border-gray-800 shadow-xl flex items-center justify-center text-gray-400 dark:text-gray-300 text-4xl font-bold overflow-hidden relative">
                          {userData?.avatarUrl ? (
-                            <img src={userData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            <Image
+                              src={userData.avatarUrl}
+                              alt="Avatar"
+                              fill
+                              sizes="128px"
+                              className="object-cover"
+                              unoptimized
+                            />
                          ) : (
                             userData?.name?.[0] || userData?.firstName?.[0] || "U"
                          )}

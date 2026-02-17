@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
-import GlobalAI from "@/components/dashboard/GlobalAI";
 import { UIProvider } from "@/components/providers/UIProvider";
 import { AnimatePresence, motion } from "framer-motion";
+import useSWR from "swr";
 import { 
   CalendarDays,
   ChevronLeft, 
@@ -26,18 +27,26 @@ import {
   X 
 } from "lucide-react";
 
+const GlobalAI = dynamic(() => import("@/components/dashboard/GlobalAI"), { ssr: false });
+
 const navItems = [
   { name: 'Дашборд', href: '/dashboard', icon: LayoutDashboard, exact: true },
   { name: 'Доходи', href: '/dashboard/income', icon: Wallet },
   { name: 'Витрати', href: '/dashboard/expenses', icon: Receipt },
-  { name: 'Виписка', href: '/dashboard/bank', icon: Landmark },
-  { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal },
-  { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse },
-  { name: 'Документи', href: '/dashboard/documents', icon: FileText },
+  { name: 'Виписка', href: '/dashboard/bank', icon: Landmark, featureFlag: "bank_import" },
+  { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal, featureFlag: "categorization_rules" },
+  { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse, featureFlag: "fop_health" },
+  { name: 'Документи', href: '/dashboard/documents', icon: FileText, featureFlag: "documents_module" },
   { name: 'Календар', href: '/dashboard/calendar', icon: CalendarDays },
-  { name: 'Статистика', href: '/dashboard/statistics', icon: PieChart },
+  { name: 'Статистика', href: '/dashboard/statistics', icon: PieChart, featureFlag: "statistics_module" },
   { name: 'Налаштування', href: '/dashboard/settings', icon: Settings },
 ] as const;
+
+const fetcher = async (url: string): Promise<{ flags: Record<string, boolean> }> => {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) throw new Error("Failed to load feature flags");
+  return response.json();
+};
 
 export default function DashboardLayout({
   children,
@@ -48,6 +57,11 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const { data: flagsData } = useSWR("/api/feature-flags", fetcher, {
+    refreshInterval: 60000,
+    revalidateOnFocus: false,
+    dedupingInterval: 30000,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -59,10 +73,21 @@ export default function DashboardLayout({
      return pathname.startsWith(item.href);
   };
 
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (!("featureFlag" in item) || !item.featureFlag) return true;
+        const flags = flagsData?.flags;
+        if (!flags) return true;
+        return flags[item.featureFlag] !== false;
+      }),
+    [flagsData?.flags]
+  );
+
   // Prefetch dashboard routes to make navigation near-instant.
   useEffect(() => {
-    navItems.forEach((item) => router.prefetch(item.href));
-  }, [router]);
+    visibleNavItems.forEach((item) => router.prefetch(item.href));
+  }, [router, visibleNavItems]);
 
   return (
     <UIProvider>
@@ -92,7 +117,7 @@ export default function DashboardLayout({
           </div>
 
           <nav className="flex-1 p-4 space-y-2 overflow-hidden">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
                const active = isLinkActive(item);
                return (
                 <Link 
@@ -155,7 +180,7 @@ export default function DashboardLayout({
                <span className="text-xl font-bold text-gray-900 dark:text-white">Меню</span>
           </div>
           <nav className="p-4 space-y-2">
-             {navItems.map((item) => {
+             {visibleNavItems.map((item) => {
                const active = isLinkActive(item);
                return (
                  <Link 

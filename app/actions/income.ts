@@ -6,54 +6,107 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import type { IncomeData, IncomeImportRow } from "@/lib/types/income";
 import { Prisma } from "@prisma/client";
 import { cacheKey, invalidateUserCache, withRedisCache } from "@/lib/redis-cache";
+import { logAuditEvent } from "@/lib/audit-log";
+import { incomeDataSchema, incomeImportRowSchema } from "@/lib/validation";
+import { measureAction } from "@/lib/performance";
+import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
+import { checkAndStoreIdempotency } from "@/lib/idempotency";
+import { enforceRateLimit } from "@/lib/security";
+import { headers } from "next/headers";
 
-export async function createIncome(data: IncomeData) {
+export async function createIncome(data: IncomeData, idempotencyKey?: string) {
+    return measureAction("action.createIncome", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
         throw new Error("Unauthorized");
     }
+    const ip = ((await headers()).get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
+    const burst = await enforceRateLimit(`action:income:create:burst:${user.id}:${ip}`, 20, 60);
+    if (!burst.allowed) {
+      return { success: false, error: "Too many requests" };
+    }
+    const idem = await checkAndStoreIdempotency({
+      scope: "action.income.create",
+      userId: user.id,
+      key: idempotencyKey,
+    });
+    if (!idem.ok && idem.duplicate) {
+      return { success: false, error: "Duplicate request" };
+    }
 
     try {
-        await prisma.income.create({
+        const parsed = incomeDataSchema.safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: "Invalid income payload" };
+        }
+        const created = await prisma.income.create({
             data: {
                 userId: user.id,
-                amount: data.amount,
-                source: data.source,
-                date: data.date,
-                type: data.type,
-                status: data.status || 'completed'
+                amount: parsed.data.amount,
+                source: parsed.data.source,
+                date: parsed.data.date,
+                type: parsed.data.type,
+                status: parsed.data.status || 'completed'
             }
         });
         revalidatePath('/dashboard/income');
         revalidateTag('dashboard-stats', "max");
+        revalidateTag("health-dashboard", "max");
         await invalidateUserCache(user.id);
-        return { success: true };
+        await logAuditEvent({
+          userId: user.id,
+          action: "income.create",
+          entityType: "income",
+          entityId: created.id,
+          metadata: { amount: created.amount, source: created.source, type: created.type },
+        });
+        return { success: true, income: created };
     } catch (error) {
         console.error("Failed to create income:", error);
         return { success: false, error: "Failed to create income" };
     }
+    });
 }
 
-export async function importIncomes(rows: IncomeImportRow[]) {
+export async function importIncomes(rows: IncomeImportRow[], idempotencyKey?: string) {
+    return measureAction("action.importIncomes", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
         throw new Error("Unauthorized");
     }
+    if (rows.length > 5000) {
+      return { success: false, error: "Too many rows. Limit is 5000." };
+    }
+    const ip = ((await headers()).get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
+    const burst = await enforceRateLimit(`action:income:import:burst:${user.id}:${ip}`, 10, 60);
+    if (!burst.allowed) {
+      return { success: false, error: "Too many import requests" };
+    }
+    const idem = await checkAndStoreIdempotency({
+      scope: "action.income.import",
+      userId: user.id,
+      key: idempotencyKey,
+      ttlSeconds: 60 * 30,
+    });
+    if (!idem.ok && idem.duplicate) {
+      return { success: false, error: "Duplicate import request" };
+    }
 
     try {
         const payload = rows
-            .filter(r => r.amount && r.source && r.date && r.type)
-            .map(r => ({
+            .map((r) => incomeImportRowSchema.safeParse(r))
+            .filter((result) => result.success)
+            .map((result) => ({
                 userId: user.id,
-                amount: Number(r.amount),
-                source: r.source,
-                date: new Date(r.date),
-                type: r.type,
-                status: r.status || "completed"
+                amount: Number(result.data.amount),
+                source: result.data.source,
+                date: new Date(result.data.date),
+                type: result.data.type,
+                status: result.data.status || "completed"
             }));
 
         if (payload.length === 0) {
@@ -63,15 +116,61 @@ export async function importIncomes(rows: IncomeImportRow[]) {
         await prisma.income.createMany({ data: payload });
         revalidatePath('/dashboard/income');
         revalidateTag('dashboard-stats', "max");
+        revalidateTag("health-dashboard", "max");
         await invalidateUserCache(user.id);
+        await logAuditEvent({
+          userId: user.id,
+          action: "income.import",
+          entityType: "income",
+          metadata: { count: payload.length },
+        });
         return { success: true, count: payload.length };
     } catch (error) {
         console.error("Failed to import incomes:", error);
         return { success: false, error: "Failed to import incomes" };
     }
+    });
 }
 
 export async function updateIncome(id: string, data: Partial<IncomeData>) {
+    return measureAction("action.updateIncome", async () => {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) throw new Error("Unauthorized");
+
+    try {
+        const parsed = incomeDataSchema.partial().safeParse(data);
+        if (!parsed.success) {
+            return { success: false, error: "Invalid income payload" };
+        }
+        const updated = await prisma.income.update({
+            where: { id, userId: user.id },
+            data: parsed.data,
+        });
+        revalidatePath('/dashboard/income');
+        revalidateTag('dashboard-stats', "max");
+        revalidateTag("health-dashboard", "max");
+        await invalidateUserCache(user.id);
+        await logAuditEvent({
+          userId: user.id,
+          action: "income.update",
+          entityType: "income",
+          entityId: id,
+          metadata: { fields: Object.keys(data) },
+        });
+        return { success: true, income: updated };
+    } catch (error) {
+        console.error("Failed to update income:", error);
+        return { success: false, error: "Failed to update income" };
+    }
+    });
+}
+
+export async function deleteIncome(id: string) {
+    return measureAction("action.deleteIncome", async () => {
+    const access = await ensureSensitiveActionAccess({ action: "deleteIncome", requireRecentReauth: true, requireTwoFactor: true });
+    if (!access.ok) return { success: false, error: access.error };
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -80,34 +179,54 @@ export async function updateIncome(id: string, data: Partial<IncomeData>) {
     try {
         await prisma.income.update({
             where: { id, userId: user.id },
-            data
+            data: { deletedAt: new Date() },
         });
         revalidatePath('/dashboard/income');
+        revalidateTag('dashboard-stats', "max");
+        revalidateTag("health-dashboard", "max");
         await invalidateUserCache(user.id);
+        await logAuditEvent({
+          userId: user.id,
+          action: "income.delete",
+          entityType: "income",
+          entityId: id,
+        });
         return { success: true };
     } catch (error) {
-        console.error("Failed to update income:", error);
-        return { success: false, error: "Failed to update income" };
+        console.error("Failed to delete income:", error);
+        return { success: false, error: "Failed to delete income" };
     }
+    });
 }
 
-export async function deleteIncome(id: string) {
+export async function restoreIncome(id: string) {
+    return measureAction("action.restoreIncome", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Unauthorized");
 
     try {
-        await prisma.income.delete({
-            where: { id, userId: user.id }
+        await prisma.income.update({
+            where: { id, userId: user.id },
+            data: { deletedAt: null },
         });
         revalidatePath('/dashboard/income');
+        revalidateTag('dashboard-stats', "max");
+        revalidateTag("health-dashboard", "max");
         await invalidateUserCache(user.id);
+        await logAuditEvent({
+          userId: user.id,
+          action: "income.restore",
+          entityType: "income",
+          entityId: id,
+        });
         return { success: true };
     } catch (error) {
-        console.error("Failed to delete income:", error);
-        return { success: false, error: "Failed to delete income" };
+        console.error("Failed to restore income:", error);
+        return { success: false, error: "Failed to restore income" };
     }
+    });
 }
 
 export async function getIncomes(searchParams?: { 
@@ -119,14 +238,19 @@ export async function getIncomes(searchParams?: {
     endDate?: string;
     minAmount?: string;
     maxAmount?: string;
+    includeDeleted?: boolean;
 }) {
+  return measureAction("action.getIncomes", async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return [];
 
   try {
-    const filters: Prisma.IncomeWhereInput = { userId: user.id };
+    const filters: Prisma.IncomeWhereInput = {
+      userId: user.id,
+      deletedAt: searchParams?.includeDeleted ? undefined : null,
+    };
 
     if (searchParams?.q) {
         filters.OR = [
@@ -179,9 +303,11 @@ export async function getIncomes(searchParams?: {
     console.error("Error fetching incomes:", error);
     return [];
   }
+  });
 }
 
 export async function getIncomeStats() {
+    return measureAction("action.getIncomeStats", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
   
@@ -192,7 +318,7 @@ export async function getIncomeStats() {
         async () => {
              try {
                 const incomes = await prisma.income.findMany({
-                    where: { userId: user.id },
+                    where: { userId: user.id, deletedAt: null },
                     orderBy: { date: 'asc' }
                 });
                 
@@ -266,5 +392,11 @@ export async function getIncomeStats() {
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 }
     )());
   
-    
+    }, { budgetMs: 900 });
+}
+
+export async function getDeletedIncomes() {
+  return measureAction("action.getDeletedIncomes", async () => getIncomes({ includeDeleted: true }).then((items) =>
+    items.filter((item) => Boolean(item.deletedAt)).slice(0, 20)
+  ));
 }

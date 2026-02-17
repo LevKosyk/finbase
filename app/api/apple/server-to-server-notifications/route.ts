@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { appleNotificationSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -55,7 +56,13 @@ export async function POST(req: Request) {
   }
 
   const token = body?.signedPayload || body?.payload;
-  if (!token) {
+  const parsedBody = appleNotificationSchema.safeParse(body || {});
+  if (!parsedBody.success) {
+    return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
+  }
+  const tokenFromSchema = parsedBody.data.signedPayload || parsedBody.data.payload;
+  const effectiveToken = tokenFromSchema || token;
+  if (!effectiveToken) {
     return NextResponse.json(
       { error: "Missing signed payload. Expected 'signedPayload' or 'payload'." },
       { status: 400 }
@@ -63,7 +70,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { payload } = await jwtVerify(token, APPLE_JWKS, {
+    const { payload } = await jwtVerify(effectiveToken, APPLE_JWKS, {
       issuer: "https://appleid.apple.com",
       audience: APPLE_NOTIFICATION_AUDIENCES?.length ? APPLE_NOTIFICATION_AUDIENCES : undefined,
     });

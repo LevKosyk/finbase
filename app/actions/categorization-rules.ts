@@ -11,6 +11,10 @@ function isMissingTableError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
 }
 
+function normalizeText(value?: string | null) {
+  return (value || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 export async function getCategorizationRules() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -113,4 +117,73 @@ export async function deleteCategorizationRule(id: string) {
   revalidatePath("/dashboard/rules");
   await invalidateUserCache(user.id);
   return { success: true };
+}
+
+export async function testCategorizationRule(input: CategorizationRuleInput) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  const [recentIncome, recentExpenses] = await Promise.all([
+    prisma.income.findMany({
+      where: { userId: user.id, deletedAt: null },
+      orderBy: { date: "desc" },
+      take: 50,
+      select: { id: true, source: true, type: true, amount: true, date: true },
+    }),
+    prisma.expense.findMany({
+      where: { userId: user.id, deletedAt: null },
+      orderBy: { date: "desc" },
+      take: 50,
+      select: { id: true, category: true, description: true, amount: true, date: true },
+    }),
+  ]);
+
+  const sampleRows = [
+    ...recentIncome.map((row) => ({
+      id: row.id,
+      direction: "income" as const,
+      counterparty: row.source,
+      description: row.type,
+      amount: row.amount,
+      date: row.date,
+    })),
+    ...recentExpenses.map((row) => ({
+      id: row.id,
+      direction: "expense" as const,
+      counterparty: row.category,
+      description: row.description || "",
+      amount: row.amount,
+      date: row.date,
+    })),
+  ]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 100);
+
+  const containsNeedle = normalizeText(input.containsText);
+  const counterpartyNeedle = normalizeText(input.counterpartyContains);
+  const directionFilter = input.direction || "expense";
+
+  const matched = sampleRows.filter((row) => {
+    if (directionFilter !== "auto" && directionFilter !== row.direction) return false;
+    const combined = normalizeText(`${row.counterparty} ${row.description}`);
+    const containsOk = containsNeedle ? combined.includes(containsNeedle) : true;
+    const counterpartyOk = counterpartyNeedle ? normalizeText(row.counterparty).includes(counterpartyNeedle) : true;
+    return containsOk && counterpartyOk;
+  });
+
+  return {
+    success: true,
+    totalSample: sampleRows.length,
+    matchedCount: matched.length,
+    matchedPreview: matched.slice(0, 10).map((row) => ({
+      id: row.id,
+      direction: row.direction,
+      amount: row.amount,
+      date: row.date,
+      counterparty: row.counterparty,
+      description: row.description,
+      categoryAfterRule: input.category,
+    })),
+  };
 }

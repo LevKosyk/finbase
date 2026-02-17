@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { X, Save } from "lucide-react";
 import { getExpenseCategories, updateExpense } from "@/app/actions/expenses";
+import { emitDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
+import { useToast } from "@/components/providers/ToastProvider";
 
 interface EditExpenseModalProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
   const [category, setCategory] = useState("");
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     async function loadCategories() {
@@ -47,20 +50,40 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
     e.preventDefault();
     if (!expense) return;
     setIsLoading(true);
+    const previous: ExpenseRow = {
+      id: expense.id,
+      amount: expense.amount,
+      category: expense.category,
+      date: new Date(expense.date),
+      description: expense.description || null
+    };
+    const next: ExpenseRow = {
+      id: expense.id,
+      amount: parseFloat(amount),
+      category,
+      date: new Date(date),
+      description: description || null
+    };
     try {
+      emitDashboardEvent("expense:update:optimistic", { id: expense.id, row: next });
       const result = await updateExpense(expense.id, {
-        amount: parseFloat(amount),
-        category,
-        date: new Date(date),
-        description
+        amount: next.amount,
+        category: next.category,
+        date: new Date(next.date),
+        description: next.description || ""
       });
-      if (result.success) {
+      if (result.success && result.expense) {
+        emitDashboardEvent("expense:update:optimistic", { id: expense.id, row: result.expense });
+        toast.success({ title: "Витрату оновлено" });
         onClose();
       } else {
-        alert("Помилка при оновленні");
+        emitDashboardEvent("expense:update:rollback", { id: expense.id, previous });
+        toast.error({ title: "Помилка при оновленні витрати", description: result.error || "Спробуйте ще раз." });
       }
     } catch (error) {
+      emitDashboardEvent("expense:update:rollback", { id: expense.id, previous });
       console.error(error);
+      toast.error({ title: "Помилка при оновленні витрати" });
     } finally {
       setIsLoading(false);
     }

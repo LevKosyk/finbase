@@ -6,8 +6,10 @@ import { headers, cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import type { ActiveSessionItem } from "@/lib/types/security";
-
-const SESSION_COOKIE = "finbase_session_id";
+import { logAuditEvent } from "@/lib/audit-log";
+import { SESSION_COOKIE, TWO_FACTOR_CHALLENGE_COOKIE, TWO_FACTOR_SESSION_COOKIE, TRUSTED_DEVICE_COOKIE, AUTH_TIME_COOKIE, DEVICE_BIND_COOKIE, SENSITIVE_REAUTH_COOKIE } from "@/lib/auth-cookies";
+import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
+import { hashString } from "@/lib/security";
 
 function isMissingTableError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
@@ -41,7 +43,8 @@ async function ensureCurrentSession(userId: string) {
   const headerList = await headers();
   const cookieStore = await cookies();
   const userAgent = headerList.get("user-agent") || "";
-  const ip = (headerList.get("x-forwarded-for") || "").split(",")[0]?.trim() || null;
+  const rawIp = (headerList.get("x-forwarded-for") || "").split(",")[0]?.trim() || null;
+  const ip = rawIp ? `h:${hashString(rawIp).slice(0, 20)}` : null;
   const { os, device, browser } = parseUserAgent(userAgent);
   const now = new Date();
   const existingId = cookieStore.get(SESSION_COOKIE)?.value;
@@ -94,10 +97,10 @@ async function ensureCurrentSession(userId: string) {
 
     cookieStore.set(SESSION_COOKIE, current.id, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "strict",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 180,
+      maxAge: 60 * 60 * 24 * 30,
     });
 
     return current.id;
@@ -151,6 +154,8 @@ export async function getActiveSessions(): Promise<ActiveSessionItem[]> {
 }
 
 export async function terminateSession(sessionId: string) {
+  const access = await ensureSensitiveActionAccess({ action: "terminateSession", requireRecentReauth: true, requireTwoFactor: true });
+  if (!access.ok) return { success: false, error: access.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
@@ -165,6 +170,12 @@ export async function terminateSession(sessionId: string) {
     await prisma.session.deleteMany({
       where: { id: sessionId, userId: user.id },
     });
+    await logAuditEvent({
+      userId: user.id,
+      action: "security.session.terminated",
+      entityType: "session",
+      entityId: sessionId,
+    });
     revalidatePath("/dashboard/settings/security");
     return { success: true };
   } catch (error) {
@@ -176,6 +187,8 @@ export async function terminateSession(sessionId: string) {
 }
 
 export async function terminateOtherSessions() {
+  const access = await ensureSensitiveActionAccess({ action: "terminateOtherSessions", requireRecentReauth: true, requireTwoFactor: true });
+  if (!access.ok) return { success: false, error: access.error };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
@@ -199,6 +212,11 @@ export async function terminateOtherSessions() {
     }
 
     revalidatePath("/dashboard/settings/security");
+    await logAuditEvent({
+      userId: user.id,
+      action: "security.sessions.terminated_others",
+      entityType: "session",
+    });
     return { success: true };
   } catch (error) {
     if (isMissingTableError(error)) {
@@ -208,3 +226,57 @@ export async function terminateOtherSessions() {
   }
 }
 
+export async function terminateAllSessions() {
+  const access = await ensureSensitiveActionAccess({ action: "terminateAllSessions", requireRecentReauth: true, requireTwoFactor: true });
+  if (!access.ok) return { success: false, error: access.error };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  await prisma.session.deleteMany({ where: { userId: user.id } });
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(TWO_FACTOR_SESSION_COOKIE);
+  cookieStore.delete(TWO_FACTOR_CHALLENGE_COOKIE);
+  cookieStore.delete(TRUSTED_DEVICE_COOKIE);
+  cookieStore.delete(AUTH_TIME_COOKIE);
+  cookieStore.delete(DEVICE_BIND_COOKIE);
+  cookieStore.delete(SENSITIVE_REAUTH_COOKIE);
+  await logAuditEvent({
+    userId: user.id,
+    action: "security.sessions.terminated_all",
+    entityType: "session",
+  });
+  revalidatePath("/dashboard/settings/security");
+  return { success: true };
+}
+
+export async function getSuspiciousActivityAlerts() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const recent = await prisma.session.findMany({
+    where: {
+      userId: user.id,
+      createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7) },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  const alerts: string[] = [];
+  const uniqueIps = new Set(recent.map((r) => r.ip).filter(Boolean));
+  if (uniqueIps.size >= 4) {
+    alerts.push("За 7 днів зафіксовано багато різних IP-адрес.");
+  }
+
+  const now = Date.now();
+  const veryRecent = recent.filter((r) => now - r.createdAt.getTime() < 1000 * 60 * 60 * 2);
+  const recentCountries = new Set(veryRecent.map((r) => r.location).filter(Boolean));
+  if (recentCountries.size >= 2) {
+    alerts.push("Підозріла активність: входи з різних локацій за короткий час.");
+  }
+
+  return alerts;
+}

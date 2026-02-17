@@ -1,18 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { 
   SendHorizontal, 
   Bot, 
   User, 
-  X, 
-  Sparkles,
-  Maximize2,
-  Minimize2
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { getAIResponse } from "@/app/actions/chat";
 
 interface Message {
   id: string;
@@ -38,70 +37,67 @@ export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperPr
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasProcessedInitialRef = useRef(false);
+  const pathname = usePathname();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    if (isOpen) {
-        scrollToBottom();
-        
-        // Handle initial message
-        if (initialMessage && !hasProcessedInitialRef.current) {
-            hasProcessedInitialRef.current = true;
-            const userMessage: Message = {
-                id: Date.now().toString(),
-                role: 'user',
-                content: initialMessage
-            };
-            setMessages(prev => [...prev, userMessage]);
-            setIsTyping(true);
-            
-            // Auto-reply
-            setTimeout(() => {
-                 const botMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: 'assistant',
-                    content: `Відповідь на: "${initialMessage}". Це демо-режим, але я зрозумів ваше питання!`
-                  };
-                  setMessages(prev => [...prev, botMessage]);
-                  setIsTyping(false);
-            }, 1000);
-        }
-    } else {
-        // Reset when closed so next time it can process again if needed? 
-        // Or keep it processed. Let's reset if message changes or on close.
-        if (!isOpen) {
-             hasProcessedInitialRef.current = false;
-        }
+  const sendUserMessage = async (content: string) => {
+    if (!content.trim()) return;
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setIsTyping(true);
+
+    try {
+      const history = [...messages, userMessage].map((m) => ({ role: m.role, content: m.content }));
+      const result = await getAIResponse(history, pathname);
+      const assistant: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: result.error || result.content || "Не вдалося сформувати відповідь.",
+      };
+      setMessages((prev) => [...prev, assistant]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Виникла помилка під час відповіді AI. Спробуйте ще раз.",
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
     }
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      hasProcessedInitialRef.current = false;
+      return;
+    }
+
+    scrollToBottom();
+    if (initialMessage && !hasProcessedInitialRef.current) {
+      hasProcessedInitialRef.current = true;
+      void sendUserMessage(initialMessage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialMessage]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const value = input;
     setInput('');
-    setIsTyping(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "Це демонстраційна версія чату. Незабаром я зможу відповідати на складні запитання, використовуючи базу знань Finbase. А поки що — спробуйте зареєструватися, це дуже просто!"
-      };
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 1500);
+    await sendUserMessage(value);
   };
 
   return (
@@ -206,7 +202,7 @@ export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperPr
             </form>
             <div className="text-center mt-2">
                     <p className="text-[10px] text-gray-400">
-                    Finbase AI v1.0 • Demo
+                    Finbase AI • Context mode
                 </p>
             </div>
         </div>

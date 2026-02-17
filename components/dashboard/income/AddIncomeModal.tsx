@@ -4,10 +4,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Plus, X } from "lucide-react";
 import { createIncome } from "@/app/actions/income";
+import { emitDashboardEvent, type IncomeRow } from "@/lib/dashboard-events";
+import { useToast } from "@/components/providers/ToastProvider";
+import { enqueueOffline } from "@/lib/offline-queue";
+import { useSWRConfig } from "swr";
 
 export default function AddIncomeModal() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const toast = useToast();
+    const { mutate } = useSWRConfig();
     
     // Form State
     const [amount, setAmount] = useState('');
@@ -18,6 +24,7 @@ export default function AddIncomeModal() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        const tempId = `temp-income-${Date.now()}`;
 
         try {
             const formData = {
@@ -27,19 +34,59 @@ export default function AddIncomeModal() {
                 type,
                 status: 'completed'
             };
+            const optimisticRow: IncomeRow = { id: tempId, ...formData };
+            emitDashboardEvent("income:create:optimistic", { row: optimisticRow });
+
+            if (!navigator.onLine) {
+                enqueueOffline({ type: "income.create", payload: formData as unknown as Record<string, unknown> });
+                setIsOpen(false);
+                setAmount('');
+                setSource('');
+                setType('job');
+                toast.info({ title: "Офлайн: дохід додано в чергу", description: "Синхронізується автоматично при відновленні мережі." });
+                return;
+            }
 
             const result = await createIncome(formData);
-            if (result.success) {
+            if (result.success && result.income) {
+                emitDashboardEvent("income:create:confirm", { tempId, row: result.income });
                 setIsOpen(false);
                 // Reset form
                 setAmount('');
                 setSource('');
                 setType('job');
+                toast.success({ title: "Дохід додано" });
+                void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
             } else {
-                alert('Помилка при створенні');
+                emitDashboardEvent("income:create:rollback", { tempId });
+                try {
+                    const apiRes = await fetch("/api/income", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(formData),
+                    });
+                    if (apiRes.ok) {
+                      const json = await apiRes.json();
+                      emitDashboardEvent("income:create:confirm", { tempId, row: json.income });
+                      setIsOpen(false);
+                      setAmount('');
+                      setSource('');
+                      setType('job');
+                      toast.success({ title: "Дохід додано" });
+                      void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
+                    } else {
+                      toast.error({ title: "Помилка при створенні доходу", description: result.error || "Спробуйте ще раз." });
+                    }
+                } catch {
+                  enqueueOffline({ type: "income.create", payload: formData as unknown as Record<string, unknown> });
+                  setIsOpen(false);
+                  toast.info({ title: "Офлайн: дохід додано в чергу" });
+                }
             }
         } catch (error) {
+            emitDashboardEvent("income:create:rollback", { tempId });
             console.error(error);
+            toast.error({ title: "Помилка при створенні доходу" });
         } finally {
             setIsLoading(false);
         }

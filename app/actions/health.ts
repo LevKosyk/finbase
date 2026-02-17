@@ -4,18 +4,21 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { buildObligationsTimeline } from "@/lib/compliance";
 import { cacheKey, withRedisCache } from "@/lib/redis-cache";
+import { unstable_cache } from "next/cache";
+import { measureAction } from "@/lib/performance";
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
 
 export async function getHealthDashboard() {
+  return measureAction("action.getHealthDashboard", async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const redisKey = cacheKey("user", user.id, "health-dashboard");
-  return withRedisCache(redisKey, 120, async () => {
+  return withRedisCache(redisKey, 120, async () => await unstable_cache(async () => {
   const now = new Date();
   const startYear = new Date(now.getFullYear(), 0, 1);
   const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -25,8 +28,8 @@ export async function getHealthDashboard() {
 
   const [settings, incomes, expenses] = await Promise.all([
     prisma.fOPSettings.findUnique({ where: { userId: user.id } }),
-    prisma.income.findMany({ where: { userId: user.id, date: { gte: startYear } } }),
-    prisma.expense.findMany({ where: { userId: user.id, date: { gte: prev3 } } }),
+    prisma.income.findMany({ where: { userId: user.id, deletedAt: null, date: { gte: startYear } } }),
+    prisma.expense.findMany({ where: { userId: user.id, deletedAt: null, date: { gte: prev3 } } }),
   ]);
   if (!settings) return null;
 
@@ -88,5 +91,6 @@ export async function getHealthDashboard() {
     },
     actionsToday,
   };
+  }, [`health-dashboard-${user.id}`], { tags: ["health-dashboard", `user-${user.id}`], revalidate: 3600 })());
   });
 }

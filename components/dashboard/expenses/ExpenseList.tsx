@@ -1,108 +1,137 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { Trash2, Edit2 } from "lucide-react";
-import { deleteExpense } from "@/app/actions/expenses";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { deleteExpense, restoreExpense } from "@/app/actions/expenses";
 import EditExpenseModal from "@/components/dashboard/expenses/EditExpenseModal";
+import DataState from "@/components/ui/DataState";
+import { useToast } from "@/components/providers/ToastProvider";
+import { subscribeDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
+import { useSWRConfig } from "swr";
 
-interface Expense {
-  id: string;
-  category: string;
-  description?: string;
-  amount: number;
-  date: Date;
+function sortExpenses(rows: ExpenseRow[]) {
+  return [...rows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-type ExpenseRow = {
-  id: string;
-  category: string;
-  description: string | null;
-  amount: number;
-  date: Date | string;
-};
-
 export default function ExpenseList({ initialExpenses }: { initialExpenses: ExpenseRow[] }) {
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [rows, setRows] = useState<ExpenseRow[]>(() => sortExpenses(initialExpenses || []));
+  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const router = useRouter();
+  const { mutate } = useSWRConfig();
+  const toast = useToast();
+
+  useEffect(() => {
+    setRows(sortExpenses(initialExpenses || []));
+  }, [initialExpenses]);
+
+  useEffect(() => {
+    const unsubscribers = [
+      subscribeDashboardEvent("expense:create:optimistic", ({ row }) => {
+        setRows((prev) => sortExpenses([row, ...prev]));
+      }),
+      subscribeDashboardEvent("expense:create:confirm", ({ tempId, row }) => {
+        setRows((prev) => sortExpenses(prev.map((item) => (item.id === tempId ? row : item))));
+      }),
+      subscribeDashboardEvent("expense:create:rollback", ({ tempId }) => {
+        setRows((prev) => prev.filter((item) => item.id !== tempId));
+      }),
+      subscribeDashboardEvent("expense:update:optimistic", ({ id, row }) => {
+        setRows((prev) => sortExpenses(prev.map((item) => (item.id === id ? row : item))));
+      }),
+      subscribeDashboardEvent("expense:update:rollback", ({ id, previous }) => {
+        setRows((prev) => sortExpenses(prev.map((item) => (item.id === id ? previous : item))));
+      }),
+    ];
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, []);
+
+  const rowCountLabel = useMemo(() => `${rows.length} записів`, [rows.length]);
 
   const handleDelete = async (id: string) => {
+    const target = rows.find((row) => row.id === id);
+    if (!target) return;
     if (!confirm("Видалити цей запис?")) return;
+
     setIsDeleting(id);
+    setRows((prev) => prev.filter((item) => item.id !== id));
+
     const result = await deleteExpense(id);
     if (result.success) {
-      router.refresh();
+      toast.success({
+        title: "Витрату переміщено в кошик",
+        actionLabel: "Скасувати",
+        onAction: async () => {
+          const restored = await restoreExpense(id);
+          if (restored.success) {
+            setRows((prev) => sortExpenses([target, ...prev]));
+            toast.info({ title: "Витрату відновлено" });
+            void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+          } else {
+            toast.error({ title: "Не вдалося відновити витрату" });
+          }
+        },
+      });
+      void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
     } else {
-      alert("Помилка видалення");
+      setRows((prev) => sortExpenses([target, ...prev]));
+      toast.error({ title: "Не вдалося видалити витрату", description: result.error || "Спробуйте ще раз" });
     }
     setIsDeleting(null);
   };
 
-  const handleEdit = (expense: ExpenseRow) => {
-    setEditingExpense({
-      ...expense,
-      date: new Date(expense.date),
-      description: expense.description || undefined
-    });
-  };
-
-  if (!initialExpenses || initialExpenses.length === 0) {
+  if (!rows.length) {
     return (
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-12 text-center">
-        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-          <Edit2 className="w-8 h-8" />
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Ще немає витрат</h3>
-        <p className="text-gray-500">Додайте свою першу витрату, щоб побачити статистику.</p>
-      </div>
+      <DataState
+        variant="empty"
+        title="Ще немає витрат"
+        description="Додайте першу витрату або імпортуйте файл, щоб сформувати звітність."
+      />
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-400">{rowCountLabel}</div>
+      <div className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50/50 border-b border-gray-100">
+            <thead className="border-b border-gray-100 bg-gray-50/60 dark:border-gray-700 dark:bg-gray-800/60">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Дата</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Категорія</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Опис</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Сума</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Дії</th>
+                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Дата</th>
+                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Категорія</th>
+                <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-500">Опис</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-gray-500">Сума</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-gray-500">Дії</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {initialExpenses.map((expense) => (
-                <tr key={expense.id} className="group hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+              {rows.map((expense) => (
+                <tr key={expense.id} className="group transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/40">
+                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                     {new Date(expense.date).toLocaleDateString("uk-UA")}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">
-                    {expense.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {expense.description || "—"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-extrabold text-gray-900">
+                  <td className="whitespace-nowrap px-6 py-4 text-sm font-bold text-gray-700 dark:text-gray-200">{expense.category}</td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{expense.description || "—"}</td>
+                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-extrabold text-gray-900 dark:text-gray-100">
                     {expense.amount.toLocaleString("uk-UA")} ₴
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                     <button
-                      onClick={() => handleEdit(expense)}
-                      className="text-gray-400 hover:text-blue-500 transition-colors p-2 hover:bg-blue-50 rounded-lg"
+                      onClick={() => setEditingExpense(expense)}
+                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-950/40"
                       title="Редагувати"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(expense.id)}
                       disabled={isDeleting === expense.id}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg"
+                      className="ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40"
                       title="Видалити"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
@@ -116,7 +145,7 @@ export default function ExpenseList({ initialExpenses }: { initialExpenses: Expe
         isOpen={!!editingExpense}
         onClose={() => {
           setEditingExpense(null);
-          router.refresh();
+          void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
         }}
         expense={editingExpense}
       />

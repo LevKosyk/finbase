@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Monitor, Moon, Sun, Languages } from "lucide-react";
 import MotionWrapper from "@/components/MotionWrapper";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/Button";
+import FeatureFlagsPanel from "@/components/dashboard/settings/FeatureFlagsPanel";
+import AuditLogPanel from "@/components/dashboard/settings/AuditLogPanel";
 
 export default function SystemSettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -86,6 +87,13 @@ export default function SystemSettingsPage() {
                             {language === 'en' && <div className="w-4 h-4 rounded-full bg-[var(--fin-primary)] dark:bg-blue-400"></div>}
                          </div>
                     </div>
+                </div>
+
+                <hr className="border-gray-100 dark:border-gray-700" />
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <FeatureFlagsPanel />
+                    <AuditLogPanel />
                 </div>
             </div>
         </MotionWrapper>

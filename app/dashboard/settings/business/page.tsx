@@ -8,6 +8,7 @@ import { updateFOPSettings } from "@/app/actions/settings";
 import { Loader2, Save, MapPin, Briefcase } from "lucide-react";
 import MotionWrapper from "@/components/MotionWrapper";
 import ProfileExport from "@/components/dashboard/settings/ProfileExport";
+import { useToast } from "@/components/providers/ToastProvider";
 
 interface FopFormData {
     legalName: string;
@@ -37,6 +38,7 @@ interface FopFormData {
 export default function BusinessSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const toast = useToast();
     
     const [fopData, setFopData] = useState<FopFormData>({
         legalName: "",
@@ -128,8 +130,8 @@ export default function BusinessSettingsPage() {
             expenseCategories: fopData.expenseCategories || undefined
         });
         setSaving(false);
-        if(res.success) alert("Дані ФОП збережено!");
-        else alert("Помилка збереження");
+        if(res.success) toast.success({ title: "Дані ФОП збережено" });
+        else toast.error({ title: "Помилка збереження даних ФОП" });
     };
 
     if (loading) {

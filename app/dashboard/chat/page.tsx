@@ -5,6 +5,8 @@ import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { getAIResponse } from "@/app/actions/chat";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { usePathname } from "next/navigation";
+import { trackEvent } from "@/lib/analytics-client";
 
 type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -18,6 +20,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,6 +35,7 @@ export default function ChatPage() {
     if (!input.trim() || loading) return;
 
     const userMsg: ChatMessage = { role: "user", content: input };
+    trackEvent("ai_question_sent", { message_length: input.length });
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
@@ -40,13 +44,15 @@ export default function ChatPage() {
     // We send only the new message history to the server action
     const history = [...messages, userMsg].filter(m => m.role !== 'system'); // simple filter
 
-    const response = await getAIResponse(history);
+    const response = await getAIResponse(history, pathname);
     
     setLoading(false);
 
     if (response.error) {
+        trackEvent("ai_response_failed", { reason: response.error });
         setMessages(prev => [...prev, { role: "assistant", content: "Вибачте, виникла помилка. Перевірте налаштування API ключа." }]);
     } else {
+        trackEvent("ai_response_success", { response_length: (response.content || "").length });
         setMessages(prev => [
           ...prev,
           { role: "assistant", content: response.content || "Немає відповіді." },

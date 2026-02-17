@@ -6,8 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 import { formatDateUA, getNextDueDate, getPeriodRange, getReportingPeriod, getStatusFromDueDate } from "@/lib/fop";
 import { cacheKey, withRedisCache } from "@/lib/redis-cache";
+import { measureAction } from "@/lib/performance";
 
 export async function getDashboardStats() {
+    return measureAction("action.getDashboardStats", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -20,7 +22,19 @@ export async function getDashboardStats() {
                 // Fetch user settings for FOP group
                 const dbUser = await prisma.user.findUnique({
                     where: { id: user.id },
-                    include: { settings: true }
+                    select: {
+                      settings: {
+                        select: {
+                          group: true,
+                          reportingPeriod: true,
+                          taxRate: true,
+                          fixedMonthlyTax: true,
+                          esvMonthly: true,
+                          incomeLimit: true,
+                          taxPaymentDay: true,
+                        },
+                      },
+                    },
                 });
 
                 const fopGroup = dbUser?.settings?.group || 3;
@@ -33,8 +47,9 @@ export async function getDashboardStats() {
 
                 // Fetch Income
                 const incomes = await prisma.income.findMany({
-                    where: { userId: user.id },
-                    orderBy: { date: 'asc' }
+                    where: { userId: user.id, deletedAt: null },
+                    orderBy: { date: 'asc' },
+                    select: { amount: true, date: true, source: true, type: true, status: true }
                 });
 
                 const now = new Date();
@@ -76,8 +91,9 @@ export async function getDashboardStats() {
                 const taxStatus = getStatusFromDueDate(nextDue);
 
                 const expenses = await prisma.expense.findMany({
-                    where: { userId: user.id },
-                    orderBy: { date: 'asc' }
+                    where: { userId: user.id, deletedAt: null },
+                    orderBy: { date: 'asc' },
+                    select: { amount: true, date: true }
                 });
                 const currentYearExpenses = expenses.filter(e => new Date(e.date).getFullYear() === currentYear);
                 const expensesTotal = currentYearExpenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -127,6 +143,7 @@ export async function getDashboardStats() {
         [`dashboard-stats-${user.id}`],
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 } 
     )());
+    });
 }
 
 export async function getReminders() {

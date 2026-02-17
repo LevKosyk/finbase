@@ -1,7 +1,23 @@
 import DocumentGenerator from "@/components/dashboard/documents/DocumentGenerator";
 import { getComplianceOverview } from "@/app/actions/compliance";
+import DataState from "@/components/ui/DataState";
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import Link from "next/link";
 
 export default async function DocumentsPage() {
+  const enabled = await isFeatureEnabled("documents_module");
+  if (!enabled) {
+    return (
+      <div className="max-w-7xl mx-auto pb-12">
+        <DataState
+          variant="empty"
+          title="Модуль документів вимкнено"
+          description="Адміністратор тимчасово вимкнув модуль через feature flag."
+        />
+      </div>
+    );
+  }
+
   const overview = await getComplianceOverview();
 
   if (!overview) {
@@ -16,6 +32,14 @@ export default async function DocumentsPage() {
       <div>
         <h1 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-2">Документи</h1>
         <p className="text-gray-500 dark:text-gray-400 text-lg">Декларація, платіжка, акт, рахунок, інвойс.</p>
+        <div className="mt-3">
+          <Link
+            href="/dashboard/documents/templates"
+            className="inline-flex items-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200"
+          >
+            Керувати версіями шаблонів
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

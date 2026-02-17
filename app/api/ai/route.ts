@@ -6,11 +6,32 @@ import { prisma } from "@/lib/prisma";
 import { cacheKey, getCacheJson, setCacheJson } from "@/lib/redis-cache";
 import { enforceRateLimit, hashString, sanitizeText } from "@/lib/security";
 import { getSupabaseEnv } from "@/lib/supabaseEnv";
+import { aiRouteRequestSchema } from "@/lib/validation";
+import { measureAction } from "@/lib/performance";
+import { captureError } from "@/lib/monitoring";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
 };
+
+const INTERFACE_HELP: Record<string, string> = {
+  "/dashboard": "Головний дашборд: KPI, ризики, ліміти, задачі на сьогодні.",
+  "/dashboard/income": "Розділ доходів: додавання, імпорт, контроль джерел і дублів.",
+  "/dashboard/expenses": "Розділ витрат: категорії, оптимізація, імпорт виписок.",
+  "/dashboard/bank": "Банківська виписка: імпорт CSV/XLSX, авто-розбір, звірка дублів.",
+  "/dashboard/rules": "Правила категоризації: умови, пріоритет, перевірка конфліктів.",
+  "/dashboard/statistics": "Статистика: тренди, податкове навантаження, практичні дії.",
+  "/dashboard/documents": "Документи: заповнення реквізитів, перевірка обов'язкових полів, експорт.",
+  "/dashboard/settings": "Налаштування: група ФОП, ставка, ліміти, платіжні реквізити.",
+};
+
+function resolveUiHint(pathname: string) {
+  const exact = INTERFACE_HELP[pathname];
+  if (exact) return exact;
+  const matched = Object.entries(INTERFACE_HELP).find(([key]) => pathname.startsWith(key));
+  return matched?.[1] || "Допомагай користувачу кроками через поточний інтерфейс.";
+}
 
 const SYSTEM_PROMPT = `
 Ти — AI-помічник Finbase для ФОП в Україні.
@@ -78,7 +99,7 @@ async function resolveUser(req: Request) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    include: { subscription: true },
+    select: { subscription: { select: { plan: true } } },
   });
 
   return {
@@ -88,10 +109,16 @@ async function resolveUser(req: Request) {
 }
 
 export async function POST(req: Request) {
+  return measureAction("api.ai.POST", async () => {
+  const startedAt = Date.now();
   try {
-    const body = (await req.json()) as { messages?: unknown; currentPath?: unknown };
-    const messages = normalizeMessages(body?.messages);
-    const currentPath = typeof body?.currentPath === "string" ? sanitizeText(body.currentPath, 120) : "";
+    const rawBody = await req.json();
+    const parsedBody = aiRouteRequestSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid AI request payload" }, { status: 400 });
+    }
+    const messages = normalizeMessages(parsedBody.data.messages);
+    const currentPath = parsedBody.data.currentPath ? sanitizeText(parsedBody.data.currentPath, 120) : "";
 
     if (messages.length === 0) {
       return NextResponse.json({ error: "Empty messages" }, { status: 400 });
@@ -115,9 +142,56 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Too many requests. Try in a minute." }, { status: 429 });
     }
 
-    const contextIncomeCount = userId
-      ? await prisma.income.count({ where: { userId } })
-      : 0;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const profile = userId
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            settings: {
+              select: {
+                group: true,
+                taxRate: true,
+                incomeLimit: true,
+              },
+            },
+          },
+        })
+      : null;
+
+    const [monthIncomeAgg, monthExpenseAgg, yearIncomeAgg] = userId
+      ? await Promise.all([
+          prisma.income.aggregate({
+            where: { userId, deletedAt: null, date: { gte: monthStart } },
+            _count: { _all: true },
+            _sum: { amount: true },
+          }),
+          prisma.expense.aggregate({
+            where: { userId, deletedAt: null, date: { gte: monthStart } },
+            _count: { _all: true },
+            _sum: { amount: true },
+          }),
+          prisma.income.aggregate({
+            where: { userId, deletedAt: null, date: { gte: yearStart } },
+            _sum: { amount: true },
+          }),
+        ])
+      : [
+          { _count: { _all: 0 }, _sum: { amount: 0 } },
+          { _count: { _all: 0 }, _sum: { amount: 0 } },
+          { _sum: { amount: 0 } },
+        ];
+
+    const monthIncome = Number(monthIncomeAgg._sum.amount || 0);
+    const monthExpense = Number(monthExpenseAgg._sum.amount || 0);
+    const yearIncome = Number(yearIncomeAgg._sum.amount || 0);
+    const group = profile?.settings?.group || "не задано";
+    const taxRate = Number(profile?.settings?.taxRate || 0);
+    const incomeLimit = Number(profile?.settings?.incomeLimit || 0);
+    const limitUsage = incomeLimit > 0 ? ((yearIncome / incomeLimit) * 100).toFixed(1) : "n/a";
+    const pathHint = resolveUiHint(currentPath || "");
 
     const finalMessages: ChatMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -125,8 +199,8 @@ export async function POST(req: Request) {
       {
         role: "system",
         content: sanitizeText(
-          `Контекст: plan=${userPlan}; income_count=${contextIncomeCount}; page=${currentPath || "unknown"}`,
-          300
+          `Контекст користувача: plan=${userPlan}; group=${group}; tax_rate=${taxRate}; month_income=${monthIncome}; month_expense=${monthExpense}; year_income=${yearIncome}; income_limit=${incomeLimit}; limit_usage_percent=${limitUsage}; page=${currentPath || "unknown"}; ui_hint=${pathHint};`,
+          700
         ),
       },
       ...messages,
@@ -136,7 +210,9 @@ export async function POST(req: Request) {
     const responseKey = cacheKey("ai", userId || "guest", responseHash);
     const cached = await getCacheJson<unknown>(responseKey);
     if (cached) {
-      return NextResponse.json(cached);
+      const response = NextResponse.json(cached);
+      response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+      return response;
     }
 
     const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -165,10 +241,13 @@ export async function POST(req: Request) {
 
     const data = await response.json();
     await setCacheJson(responseKey, data, 120);
-    return NextResponse.json(data);
+    const okResponse = NextResponse.json(data);
+    okResponse.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    return okResponse;
   } catch (error) {
     console.error("AI route error:", error);
+    await captureError(error, { route: "api/ai" });
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+  }, { budgetMs: 1200 });
 }
-

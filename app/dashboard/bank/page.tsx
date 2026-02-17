@@ -1,8 +1,40 @@
 import BankStatementImport from "@/components/dashboard/bank/BankStatementImport";
 import { getStatementImports } from "@/app/actions/bank";
+import DataState from "@/components/ui/DataState";
+import { isDynamicServerUsageError } from "@/lib/is-dynamic-server-error";
+import BankImportsHistory from "@/components/dashboard/bank/BankImportsHistory";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export default async function BankPage() {
-  const imports = await getStatementImports();
+  const enabled = await isFeatureEnabled("bank_import");
+  if (!enabled) {
+    return (
+      <div className="max-w-7xl mx-auto pb-12 space-y-6">
+        <DataState
+          variant="empty"
+          title="Модуль банківських виписок вимкнено"
+          description="Адміністратор тимчасово вимкнув модуль через feature flag."
+        />
+      </div>
+    );
+  }
+
+  let imports: Awaited<ReturnType<typeof getStatementImports>> = [];
+  try {
+    imports = await getStatementImports();
+  } catch (error) {
+    if (isDynamicServerUsageError(error)) throw error;
+    console.error("Bank page error:", error);
+    return (
+      <div className="max-w-7xl mx-auto pb-12 space-y-6">
+        <DataState
+          variant="error"
+          title="Не вдалося завантажити банківські імпорти"
+          description="Сталася помилка під час завантаження історії імпортів. Спробуйте ще раз."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto pb-12 space-y-6">
@@ -15,38 +47,7 @@ export default async function BankPage() {
 
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 md:p-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Історія імпортів</h2>
-        {imports.length === 0 ? (
-          <p className="text-gray-500">Імпортів поки немає.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs uppercase text-gray-500">
-                  <th className="py-2 pr-4">Дата</th>
-                  <th className="py-2 pr-4">Файл</th>
-                  <th className="py-2 pr-4">Рядків</th>
-                  <th className="py-2 pr-4">Дохід</th>
-                  <th className="py-2 pr-4">Витрати</th>
-                  <th className="py-2 pr-4">Дублі</th>
-                  <th className="py-2 pr-4">Пропущено</th>
-                </tr>
-              </thead>
-              <tbody>
-                {imports.map((item) => (
-                  <tr key={item.id} className="border-t border-gray-100 text-sm">
-                    <td className="py-3 pr-4">{new Date(item.createdAt).toLocaleString("uk-UA")}</td>
-                    <td className="py-3 pr-4 font-semibold">{item.fileName}</td>
-                    <td className="py-3 pr-4">{item.totalRows}</td>
-                    <td className="py-3 pr-4 text-emerald-700 font-semibold">{item.importedIncome}</td>
-                    <td className="py-3 pr-4 text-blue-700 font-semibold">{item.importedExpense}</td>
-                    <td className="py-3 pr-4 text-amber-700 font-semibold">{item.duplicateRows}</td>
-                    <td className="py-3 pr-4 text-red-700 font-semibold">{item.skippedRows}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <BankImportsHistory initialImports={imports} />
       </div>
     </div>
   );

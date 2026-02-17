@@ -2,8 +2,8 @@
 
 import { Button } from "@/components/ui/Button";
 import { signInWithOAuth } from "@/app/actions/auth";
-import { Chrome, Facebook } from "lucide-react";
-import Image from "next/image";
+import { Facebook } from "lucide-react";
+import { trackEvent } from "@/lib/analytics-client";
 
 // Custom Apple Icon as Lucide doesn't have a perfect brand match
 const AppleIcon = ({ className }: { className?: string }) => (
@@ -43,7 +43,10 @@ export function SocialAuth() {
                 <Button 
                     variant="outline" 
                     type="button"
-                    onClick={() => signInWithOAuth('google')}
+                    onClick={() => {
+                        trackEvent("oauth_signin_clicked", { provider: "google" });
+                        signInWithOAuth('google');
+                    }}
                     className="border-gray-200 hover:bg-gray-50"
                 >
                     <GoogleIcon className="w-5 h-5" />
@@ -52,7 +55,10 @@ export function SocialAuth() {
                 <Button 
                     variant="outline" 
                     type="button"
-                    onClick={() => signInWithOAuth('apple')}
+                    onClick={() => {
+                        trackEvent("oauth_signin_clicked", { provider: "apple" });
+                        signInWithOAuth('apple');
+                    }}
                     className="border-gray-200 hover:bg-gray-50 text-black"
                 >
                     <AppleIcon className="w-5 h-5" />
@@ -61,7 +67,10 @@ export function SocialAuth() {
                 <Button 
                     variant="outline" 
                     type="button"
-                    onClick={() => signInWithOAuth('facebook')}
+                    onClick={() => {
+                        trackEvent("oauth_signin_clicked", { provider: "facebook" });
+                        signInWithOAuth('facebook');
+                    }}
                     className="border-gray-200 hover:bg-gray-50 text-[#1877F2]"
                 >
                     <Facebook className="w-5 h-5 fill-current" />

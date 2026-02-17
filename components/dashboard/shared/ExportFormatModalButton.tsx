@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { trackEvent } from "@/lib/analytics-client";
 
 type ExportType = "incomes" | "expenses" | "profile";
 type ExportFormat = "csv" | "xlsx" | "pdf" | "json";
@@ -28,6 +29,7 @@ export default function ExportFormatModalButton({
   const allowed = useMemo(() => ALL_FORMATS.filter((item) => formats.includes(item)), [formats]);
 
   const submitExport = () => {
+    trackEvent("export_submitted", { export_type: type, export_format: format });
     window.location.href = `/api/export?type=${type}&format=${format}`;
     setOpen(false);
   };
@@ -37,7 +39,10 @@ export default function ExportFormatModalButton({
       <Button
         variant="secondary"
         leftIcon={<Download className="w-5 h-5" />}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          trackEvent("export_modal_opened", { export_type: type });
+        }}
         className="min-w-[132px]"
       >
         {label}
@@ -84,4 +89,3 @@ export default function ExportFormatModalButton({
     </>
   );
 }
-

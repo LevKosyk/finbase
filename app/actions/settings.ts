@@ -4,6 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { invalidateUserCache } from "@/lib/redis-cache";
+import { logAuditEvent } from "@/lib/audit-log";
+import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 
 export async function updateFOPSettings(data: {
   legalName?: string;
@@ -48,6 +50,12 @@ export async function updateFOPSettings(data: {
       },
     });
     await invalidateUserCache(user.id);
+    await logAuditEvent({
+      userId: user.id,
+      action: "settings.fop.update",
+      entityType: "fop_settings",
+      metadata: { fields: Object.keys(data) },
+    });
 
     revalidatePath("/dashboard/settings");
     return { success: true };
@@ -80,6 +88,12 @@ export async function updateNotificationSettings(data: {
         }
     });
     await invalidateUserCache(user.id);
+    await logAuditEvent({
+      userId: user.id,
+      action: "settings.notifications.update",
+      entityType: "notification_settings",
+      metadata: { ...data },
+    });
     revalidatePath("/dashboard/settings");
     return { success: true };
   } catch (e) {
@@ -104,16 +118,38 @@ export async function updateProfile(data: {
     }
 
     try {
+        if (data.email && data.email !== user.email) {
+            const access = await ensureSensitiveActionAccess({
+              action: "settings.profile.change_email",
+              requireRecentReauth: true,
+              requireTwoFactor: true,
+            });
+            if (!access.ok) {
+              return { error: access.error };
+            }
+            const { error: updateAuthError } = await supabase.auth.updateUser({ email: data.email });
+            if (updateAuthError) {
+              return { error: updateAuthError.message };
+            }
+        }
+
         await prisma.user.update({
             where: { id: user.id },
             data: {
                 name: data.name,
                 firstName: data.firstName,
                 lastName: data.lastName,
-                avatarUrl: data.avatarUrl
+                avatarUrl: data.avatarUrl,
+                ...(data.email ? { email: data.email } : {}),
             }
         });
         await invalidateUserCache(user.id);
+        await logAuditEvent({
+          userId: user.id,
+          action: "settings.profile.update",
+          entityType: "user_profile",
+          metadata: { fields: ["name", "firstName", "lastName", "avatarUrl"] },
+        });
         revalidatePath("/dashboard/settings");
         return { success: true };
     } catch {

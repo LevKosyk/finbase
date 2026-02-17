@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import {
   createCategorizationRule,
   deleteCategorizationRule,
+  testCategorizationRule,
   updateCategorizationRule,
 } from "@/app/actions/categorization-rules";
 import type { CategorizationRuleInput } from "@/lib/types/rules";
@@ -32,6 +33,19 @@ export default function RulesManager({ initialRules }: { initialRules: Rule[] })
     isActive: true,
   });
   const [error, setError] = useState("");
+  const [testResult, setTestResult] = useState<{
+    totalSample: number;
+    matchedCount: number;
+    matchedPreview: Array<{
+      id: string;
+      direction: string;
+      amount: number;
+      date: Date;
+      counterparty: string;
+      description: string;
+      categoryAfterRule: string;
+    }>;
+  } | null>(null);
 
   const createRule = () => {
     setError("");
@@ -50,6 +64,23 @@ export default function RulesManager({ initialRules }: { initialRules: Rule[] })
         isActive: true,
       });
       router.refresh();
+    });
+  };
+
+  const runTest = () => {
+    setError("");
+    setTestResult(null);
+    startTransition(async () => {
+      const res = await testCategorizationRule(form);
+      if (!res.success) {
+        setError(res.error || "Помилка тесту правила");
+        return;
+      }
+      setTestResult({
+        totalSample: res.totalSample ?? 0,
+        matchedCount: res.matchedCount ?? 0,
+        matchedPreview: (res.matchedPreview ?? []) as any,
+      });
     });
   };
 
@@ -112,7 +143,29 @@ export default function RulesManager({ initialRules }: { initialRules: Rule[] })
           />
         </div>
 
-        <Button onClick={createRule} isLoading={pending}>Додати правило</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={runTest} isLoading={pending}>Тест на 100 транзакціях</Button>
+          <Button onClick={createRule} isLoading={pending}>Зберегти правило</Button>
+        </div>
+
+        {testResult && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3">
+            <p className="text-sm font-bold text-blue-900">
+              Збігів: {testResult.matchedCount} з {testResult.totalSample}
+            </p>
+            {testResult.matchedPreview.length === 0 ? (
+              <p className="text-sm text-blue-800">Збігів не знайдено.</p>
+            ) : (
+              <div className="space-y-2">
+                {testResult.matchedPreview.map((row) => (
+                  <div key={row.id} className="rounded-xl bg-white px-3 py-2 text-xs text-gray-700">
+                    {row.direction.toUpperCase()} • {new Date(row.date).toLocaleDateString("uk-UA")} • {row.amount.toLocaleString("uk-UA")} ₴ • {row.counterparty}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 md:p-8">

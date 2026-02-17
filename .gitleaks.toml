@@ -1,0 +1,11 @@
+title = "Finbase gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow example env placeholders"
+paths = [
+  '''\.env\.example$''',
+  '''docs/.*'''
+]

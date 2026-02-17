@@ -18,9 +18,16 @@ export async function POST(req: Request) {
   }
 
   const users = await prisma.user.findMany({
-    include: {
+    select: {
+      email: true,
+      name: true,
       settings: true,
-      notifications: true,
+      notifications: {
+        select: {
+          monthlyReport: true,
+          weeklyGovReport: true,
+        },
+      },
     },
   });
 

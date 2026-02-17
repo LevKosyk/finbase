@@ -9,6 +9,7 @@ import {
   getRequiredProfileFields,
   validateTaxRules,
 } from "@/lib/compliance";
+import { measureAction } from "@/lib/performance";
 
 function getPeriodDates(period?: string | null, now = new Date()) {
   if (period === "monthly") {
@@ -35,23 +36,24 @@ function getPeriodDates(period?: string | null, now = new Date()) {
 }
 
 export async function getComplianceOverview() {
+  return measureAction("action.getComplianceOverview", async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    include: { settings: true }
+    select: { settings: true }
   });
   if (!dbUser?.settings) return null;
 
   const settings = dbUser.settings;
   const period = getPeriodDates(settings.reportingPeriod);
   const incomes = await prisma.income.findMany({
-    where: { userId: user.id, date: { gte: period.start, lte: period.end } },
+    where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
   });
   const expenses = await prisma.expense.findMany({
-    where: { userId: user.id, date: { gte: period.start, lte: period.end } },
+    where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
   });
 
   const totalIncome = incomes.reduce((acc, i) => acc + i.amount, 0);
@@ -85,9 +87,11 @@ export async function getComplianceOverview() {
     checklist,
     obligations,
   };
+  }, { budgetMs: 900 });
 }
 
 export async function sendComplianceReminderEmail() {
+  return measureAction("action.sendComplianceReminderEmail", async () => {
   if (!process.env.RESEND_API_KEY) {
     return { success: false, error: "Resend API Key is missing" };
   }
@@ -129,4 +133,5 @@ export async function sendComplianceReminderEmail() {
   } catch {
     return { success: false, error: "Failed to send reminder email" };
   }
+  }, { budgetMs: 1200 });
 }

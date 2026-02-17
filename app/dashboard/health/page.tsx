@@ -1,4 +1,6 @@
 import { getHealthDashboard } from "@/app/actions/health";
+import DataState from "@/components/ui/DataState";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 function riskLabel(score: number) {
   if (score >= 70) return { text: "Високий ризик", color: "text-red-700 bg-red-50" };
@@ -7,6 +9,19 @@ function riskLabel(score: number) {
 }
 
 export default async function HealthPage() {
+  const enabled = await isFeatureEnabled("fop_health");
+  if (!enabled) {
+    return (
+      <div className="max-w-7xl mx-auto pb-12">
+        <DataState
+          variant="empty"
+          title="Модуль здоров&apos;я ФОП вимкнено"
+          description="Адміністратор тимчасово вимкнув модуль через feature flag."
+        />
+      </div>
+    );
+  }
+
   const data = await getHealthDashboard();
   if (!data) {
     return <div className="p-6 bg-white rounded-2xl border border-gray-200">Заповніть налаштування ФОП і додайте операції для розрахунку здоров&apos;я.</div>;

@@ -6,12 +6,14 @@ import type { StatisticsData } from "@/lib/types/statistics";
 
 import { unstable_cache } from "next/cache";
 import { cacheKey, withRedisCache } from "@/lib/redis-cache";
+import { measureAction } from "@/lib/performance";
 
 export async function getStatistics(
     period: 'month' | 'quarter' | 'year' | 'custom' = 'year',
     from?: string,
     to?: string
 ): Promise<StatisticsData | null> {
+    return measureAction("action.getStatistics", async () => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,7 +25,16 @@ export async function getStatistics(
              try {
                 const dbUser = await prisma.user.findUnique({
                     where: { id: user.id },
-                    include: { settings: true }
+                    select: {
+                      settings: {
+                        select: {
+                          taxRate: true,
+                          fixedMonthlyTax: true,
+                          esvMonthly: true,
+                          incomeLimit: true,
+                        },
+                      },
+                    },
                 });
 
                 const taxRate = dbUser?.settings?.taxRate || 0;
@@ -82,23 +93,29 @@ export async function getStatistics(
                 const incomes = await prisma.income.findMany({
                     where: { 
                         userId: user.id,
+                        deletedAt: null,
                         date: dateFilter
                     },
-                    orderBy: { date: 'asc' }
+                    orderBy: { date: 'asc' },
+                    select: { amount: true, date: true, source: true }
                 });
                 
                 const expenses = await prisma.expense.findMany({
                     where: {
                         userId: user.id,
+                        deletedAt: null,
                         date: dateFilter
-                    }
+                    },
+                    select: { amount: true, category: true }
                 });
 
                 const previousIncomes = await prisma.income.findMany({
-                    where: { userId: user.id, date: previousDateFilter }
+                    where: { userId: user.id, deletedAt: null, date: previousDateFilter },
+                    select: { amount: true }
                 });
                 const previousExpenses = await prisma.expense.findMany({
-                    where: { userId: user.id, date: previousDateFilter }
+                    where: { userId: user.id, deletedAt: null, date: previousDateFilter },
+                    select: { amount: true }
                 });
                 
                 const totalIncome = incomes.reduce((sum: number, item) => sum + item.amount, 0);
@@ -123,8 +140,10 @@ export async function getStatistics(
                 const yearlyIncomes = await prisma.income.findMany({
                     where: {
                         userId: user.id,
+                        deletedAt: null,
                         date: { gte: new Date(new Date().getFullYear(), 0, 1) }
-                    }
+                    },
+                    select: { amount: true }
                 });
                 const yearTotalIncome = yearlyIncomes.reduce((sum: number, i) => sum + i.amount, 0);
 
@@ -241,4 +260,5 @@ export async function getStatistics(
         [`stats-${user.id}-${period}-${from}-${to}`],
         { tags: ['dashboard-stats', `user-${user.id}`], revalidate: 3600 }
     )());
+    }, { budgetMs: 900, meta: { period } });
 }

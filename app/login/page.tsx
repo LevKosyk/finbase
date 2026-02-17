@@ -7,17 +7,25 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   const handleLogin = (formData: FormData) => {
     startTransition(async () => {
       const result = await login(formData);
       if (result?.error) {
-        alert(result.error);
+        toast.error({ title: "Помилка входу", description: result.error });
+        return;
       }
+      if (result?.requires2fa) {
+        router.push("/login/2fa");
+        return;
+      }
+      router.push("/dashboard");
     });
   };
 

@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Shield, Smartphone, Globe, AlertTriangle, CheckCircle2, Chrome, Facebook, Apple } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { getActiveSessions, terminateOtherSessions, terminateSession } from "@/app/actions/security";
+import { getActiveSessions, getSuspiciousActivityAlerts, terminateAllSessions, terminateOtherSessions, terminateSession } from "@/app/actions/security";
 import type { ActiveSessionItem } from "@/lib/types/security";
+import {
+  authorizeSensitiveActionWithTwoFactor,
+  beginTwoFactorSetup,
+  confirmTwoFactorSetup,
+  disableTwoFactor,
+  getTrustedDevices,
+  getTwoFactorStatus,
+  revokeTrustedDevice,
+} from "@/app/actions/two-factor";
+import { useToast } from "@/components/providers/ToastProvider";
 
 type OAuthProvider = "google" | "facebook" | "apple";
 
@@ -51,6 +62,12 @@ export default function SecurityPage() {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState("");
   const [pending, startTransition] = useTransition();
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [setupQr, setSetupQr] = useState<string | null>(null);
+  const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; label: string | null; lastUsedAt: Date | string }>>([]);
+  const [alerts, setAlerts] = useState<string[]>([]);
+  const toast = useToast();
 
   const relativeTime = useMemo(
     () =>
@@ -118,6 +135,12 @@ export default function SecurityPage() {
   useEffect(() => {
     loadLinkedAccounts();
     loadSessions();
+    (async () => {
+      const status = await getTwoFactorStatus();
+      setTwoFactorEnabled(status.enabled);
+      setTrustedDevices(await getTrustedDevices());
+      setAlerts(await getSuspiciousActivityAlerts());
+    })();
   }, []);
 
   const handleConnect = async (provider: OAuthProvider) => {
@@ -185,6 +208,133 @@ export default function SecurityPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Двофакторна автентифікація (2FA)</h2>
+          <span className={`text-xs font-bold px-2 py-1 rounded-full ${twoFactorEnabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+            {twoFactorEnabled ? "Увімкнено" : "Вимкнено"}
+          </span>
+        </div>
+        {!twoFactorEnabled ? (
+          <div className="space-y-3">
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                const res = await beginTwoFactorSetup();
+                if (!res.success) {
+                  toast.error({ title: "Не вдалося почати налаштування 2FA", description: res.error });
+                  return;
+                }
+                setSetupQr(res.qrDataUrl || null);
+              }}
+            >
+              Налаштувати 2FA
+            </Button>
+            {setupQr && (
+              <div className="space-y-2">
+                <Image src={setupQr} alt="2FA QR" width={176} height={176} className="w-44 h-44 border rounded-xl p-2 bg-white" unoptimized />
+                <div className="flex items-center gap-2">
+                  <input
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    placeholder="Код з Authenticator"
+                    className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                  />
+                  <Button
+                    onClick={async () => {
+                      const res = await confirmTwoFactorSetup(twoFactorCode);
+                      if (!res.success) {
+                        toast.error({ title: "Невірний код 2FA", description: res.error });
+                        return;
+                      }
+                      setTwoFactorEnabled(true);
+                      setSetupQr(null);
+                      setTwoFactorCode("");
+                      toast.success({ title: "2FA увімкнено" });
+                    }}
+                  >
+                    Підтвердити
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+                placeholder="Код для вимкнення"
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+              />
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  const res = await disableTwoFactor(twoFactorCode);
+                  if (!res.success) {
+                    toast.error({ title: "Не вдалося вимкнути 2FA", description: res.error });
+                    return;
+                  }
+                  setTwoFactorEnabled(false);
+                  setTwoFactorCode("");
+                  toast.info({ title: "2FA вимкнено" });
+                }}
+              >
+                Вимкнути 2FA
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Довірені пристрої</p>
+              {trustedDevices.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Немає збережених пристроїв.</p>
+              ) : (
+                trustedDevices.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
+                    <span className="text-gray-700 dark:text-gray-200">{item.label || "Unknown device"}</span>
+                    <Button size="sm" variant="ghost" onClick={async () => {
+                      await revokeTrustedDevice(item.id);
+                      setTrustedDevices(await getTrustedDevices());
+                      toast.info({ title: "Довірений пристрій видалено" });
+                    }}>
+                      Видалити
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Підтвердження чутливих дій</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Перед експортом, видаленням та критичними змінами підтвердіть 2FA-код. Діє 10 хвилин.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            value={twoFactorCode}
+            onChange={(e) => setTwoFactorCode(e.target.value)}
+            placeholder="Код з Authenticator"
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          />
+          <Button
+            onClick={async () => {
+              const res = await authorizeSensitiveActionWithTwoFactor(twoFactorCode);
+              if (!res.success) {
+                toast.error({ title: "Не вдалося підтвердити дію", description: res.error });
+                return;
+              }
+              setTwoFactorCode("");
+              toast.success({ title: "Підтверджено", description: "Чутливі дії дозволені на 10 хвилин." });
+            }}
+          >
+            Підтвердити
+          </Button>
+        </div>
+      </div>
+
       <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-[var(--fin-primary)] dark:text-blue-300">
@@ -258,9 +408,28 @@ export default function SecurityPage() {
         </div>
 
         <div className="flex justify-end mb-4">
+          <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={handleTerminateOthers} isLoading={pending}>
             Завершити всі інші сесії
           </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() =>
+              startTransition(async () => {
+                const res = await terminateAllSessions();
+                if (!res.success) {
+                  setSessionsError(res.error || "Не вдалося завершити всі сесії.");
+                  return;
+                }
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              })
+            }
+          >
+            Force sign-out all
+          </Button>
+          </div>
         </div>
 
         {sessionsError && (
@@ -310,7 +479,12 @@ export default function SecurityPage() {
 
       <div className="p-4 rounded-2xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-700/50 flex items-start gap-3 text-yellow-800 dark:text-yellow-200 text-sm">
         <AlertTriangle className="w-5 h-5 shrink-0" />
-        <p>Якщо ви помітили підозрілу активність, негайно змініть пароль та завершіть усі інші сесії.</p>
+        <div className="space-y-1">
+          <p>Якщо ви помітили підозрілу активність, негайно змініть пароль та завершіть усі інші сесії.</p>
+          {alerts.map((alert) => (
+            <p key={alert} className="font-semibold">• {alert}</p>
+          ))}
+        </div>
       </div>
     </div>
   );

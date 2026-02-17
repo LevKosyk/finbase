@@ -6,6 +6,7 @@ import { getUser } from "@/app/actions/auth";
 import { updateNotificationSettings } from "@/app/actions/settings";
 import { Loader2, Save, Mail, CreditCard } from "lucide-react";
 import MotionWrapper from "@/components/MotionWrapper";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function NotificationsSettingsPage() {
     type NotificationFormData = {
@@ -17,6 +18,7 @@ export default function NotificationsSettingsPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const toast = useToast();
     
     const [notifyData, setNotifyData] = useState<NotificationFormData>({
         emailNews: true,
@@ -45,8 +47,8 @@ export default function NotificationsSettingsPage() {
         setSaving(true);
         const res = await updateNotificationSettings(notifyData);
         setSaving(false);
-        if(res.success) alert("Налаштування сповіщень збережено!");
-        else alert("Помилка збереження");
+        if(res.success) toast.success({ title: "Налаштування сповіщень збережено" });
+        else toast.error({ title: "Помилка збереження налаштувань" });
     };
 
     if (loading) {

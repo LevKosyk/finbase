@@ -1,6 +1,6 @@
 "use client";
 
-import { signup, signInWithOAuth, verifyEmail } from "@/app/actions/auth";
+import { signup, verifyEmail } from "@/app/actions/auth";
 import { SocialAuth } from "@/components/auth/SocialAuth";
 import { useState, useTransition } from "react";
 import AuthLayout from "@/components/AuthLayout";
@@ -10,10 +10,13 @@ import { CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "@/lib/analytics-client";
+import { useToast } from "@/components/providers/ToastProvider";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
   const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   
@@ -22,11 +25,14 @@ export default function RegisterPage() {
 
   const handleRegister = (formData: FormData) => {
     const email = formData.get("email") as string;
+    trackEvent("signup_submitted", { has_terms: agreedToTerms });
     startTransition(async () => {
       const result = await signup(formData);
       if (result?.error) {
-        alert("Помилка реєстрації: " + result.error);
+        trackEvent("signup_failed", { reason: result.error });
+        toast.error({ title: "Помилка реєстрації", description: result.error });
       } else if (result?.success) {
+         trackEvent("signup_success", { email_domain: email.split("@")[1] || "unknown" });
          setEmailForVerify(email);
          setStep('verify');
       }
@@ -38,8 +44,10 @@ export default function RegisterPage() {
     startTransition(async () => {
         const result = await verifyEmail(emailForVerify, code);
         if (result?.error) {
-            alert("Помилка підтвердження: " + result.error);
+            trackEvent("signup_verify_failed", { reason: result.error });
+            toast.error({ title: "Помилка підтвердження", description: result.error });
         } else if (result?.success) {
+            trackEvent("signup_verify_success");
             router.push("/onboarding");
         }
     });
