@@ -16,7 +16,9 @@ export async function getCacheJson<T>(key: string): Promise<T | null> {
   const redis = getRedisClient();
   if (!redis) return null;
   try {
-    await redis.connect();
+    if (redis.status !== "ready" && redis.status !== "connecting" && redis.status !== "connect") {
+      await redis.connect();
+    }
     const raw = await redis.get(key);
     if (!raw) return null;
     return JSON.parse(raw) as T;
@@ -30,7 +32,9 @@ export async function setCacheJson<T>(key: string, value: T, ttlSeconds: number)
   const redis = getRedisClient();
   if (!redis) return;
   try {
-    await redis.connect();
+    if (redis.status !== "ready" && redis.status !== "connecting" && redis.status !== "connect") {
+      await redis.connect();
+    }
     await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   } catch (error) {
     console.warn("[Redis] setCacheJson failed:", error);
@@ -50,13 +54,18 @@ export async function invalidateUserCache(userId: string) {
   if (!redis) return;
   const pattern = cacheKey("user", userId, "*");
   try {
-    await redis.connect();
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    if (redis.status !== "ready" && redis.status !== "connecting" && redis.status !== "connect") {
+      await redis.connect();
     }
+    let cursor = "0";
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 200);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } while (cursor !== "0");
   } catch (error) {
     console.warn("[Redis] invalidateUserCache failed:", error);
   }
 }
-

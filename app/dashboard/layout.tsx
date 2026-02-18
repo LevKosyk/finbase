@@ -7,20 +7,20 @@ import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/Button";
 import { UIProvider } from "@/components/providers/UIProvider";
-import { AnimatePresence, motion } from "framer-motion";
+import SWRProvider from "@/components/providers/SWRProvider";
 import useSWR from "swr";
+import { useDashboardStore } from "@/lib/store/dashboard-store";
 import { 
   CalendarDays,
   ChevronLeft, 
   ChevronRight, 
+  Crown,
   FileText,
   HeartPulse,
   LayoutDashboard, 
-  Landmark,
   LogOut, 
   Menu, 
   Receipt, 
-  SlidersHorizontal,
   PieChart, 
   Settings, 
   Wallet, 
@@ -33,8 +33,6 @@ const navItems = [
   { name: 'Дашборд', href: '/dashboard', icon: LayoutDashboard, exact: true },
   { name: 'Доходи', href: '/dashboard/income', icon: Wallet },
   { name: 'Витрати', href: '/dashboard/expenses', icon: Receipt },
-  { name: 'Виписка', href: '/dashboard/bank', icon: Landmark, featureFlag: "bank_import" },
-  { name: 'Правила', href: '/dashboard/rules', icon: SlidersHorizontal, featureFlag: "categorization_rules" },
   { name: "Здоров'я ФОП", href: "/dashboard/health", icon: HeartPulse, featureFlag: "fop_health" },
   { name: 'Документи', href: '/dashboard/documents', icon: FileText, featureFlag: "documents_module" },
   { name: 'Календар', href: '/dashboard/calendar', icon: CalendarDays },
@@ -53,8 +51,12 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const sidebarOpen = useDashboardStore((state) => state.sidebarOpen);
+  const isCollapsed = useDashboardStore((state) => state.sidebarCollapsed);
+  const setSidebarOpen = useDashboardStore((state) => state.setSidebarOpen);
+  const setIsCollapsed = useDashboardStore((state) => state.setSidebarCollapsed);
+  const setLastVisitedPath = useDashboardStore((state) => state.setLastVisitedPath);
   const router = useRouter();
   const pathname = usePathname();
   const { data: flagsData } = useSWR("/api/feature-flags", fetcher, {
@@ -89,9 +91,18 @@ export default function DashboardLayout({
     visibleNavItems.forEach((item) => router.prefetch(item.href));
   }, [router, visibleNavItems]);
 
+  useEffect(() => {
+    setLastVisitedPath(pathname);
+  }, [pathname, setLastVisitedPath]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <UIProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <SWRProvider>
+      <UIProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
         {/* Sidebar - Desktop */}
         <aside 
           className={`hidden md:flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed h-full z-20 transition-all duration-300 ease-in-out ${
@@ -138,6 +149,34 @@ export default function DashboardLayout({
                );
             })}
           </nav>
+
+          <div className="px-4 pb-4">
+            {mounted ? (
+              isCollapsed ? (
+                <Link
+                  href="/dashboard/plans"
+                  title="Купи Pro"
+                  className="h-11 rounded-xl border border-amber-200 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 flex items-center justify-center hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                >
+                  <Crown className="w-5 h-5" />
+                </Link>
+              ) : (
+                <div className="rounded-2xl border border-amber-200 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 p-3">
+                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Хочеш більше можливостей?</p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-1">Оновись до Pro для розширених функцій.</p>
+                  <Link
+                    href="/dashboard/plans"
+                    className="mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors"
+                  >
+                    <Crown className="w-4 h-4" />
+                    Купи Pro
+                  </Link>
+                </div>
+              )
+            ) : (
+              <div className="h-11 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800" />
+            )}
+          </div>
 
           <div className="p-4 border-t border-gray-100 dark:border-gray-700">
              <Button 
@@ -198,6 +237,17 @@ export default function DashboardLayout({
                 </Link>
                );
              })}
+             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 mt-3">
+               <p className="text-xs font-semibold text-amber-700">Хочеш більше можливостей?</p>
+               <Link
+                 href="/dashboard/plans"
+                 onClick={() => setSidebarOpen(false)}
+                 className="mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors"
+               >
+                 <Crown className="w-4 h-4" />
+                 Купи Pro
+               </Link>
+             </div>
               <Button 
                variant="ghost"
                onClick={handleLogout}
@@ -216,23 +266,19 @@ export default function DashboardLayout({
           }`}
         >
           <div className="max-w-7xl mx-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={pathname}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            <div
+              key={pathname}
+              className="animate-in fade-in slide-in-from-bottom-1 duration-200 ease-out"
+            >
+              {children}
+            </div>
           </div>
         </main>
         
         <GlobalAI />
 
-      </div>
-    </UIProvider>
+        </div>
+      </UIProvider>
+    </SWRProvider>
   );
 }

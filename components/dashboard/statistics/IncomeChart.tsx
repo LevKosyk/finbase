@@ -19,6 +19,7 @@ interface IncomeChartProps {
 
 export default function IncomeChart({ data }: IncomeChartProps) {
     const [chartType, setChartType] = useState<'area' | 'bar'>('area');
+    const formatValue = (val: number) => `${Number(val).toLocaleString("uk-UA")} ₴`;
 
     return (
         <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[32px] border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col h-[400px] hover:shadow-md transition-shadow duration-300">
@@ -65,11 +66,13 @@ export default function IncomeChart({ data }: IncomeChartProps) {
                                 axisLine={false} 
                                 tickLine={false} 
                                 tick={{ fill: '#9ca3af', fontSize: 12 }} 
-                                tickFormatter={(val) => `${val / 1000}k`}
+                                tickFormatter={(val) => Number(val).toLocaleString("uk-UA")}
                             />
                             <Tooltip 
                                 cursor={{ stroke: '#3b82f6', strokeWidth: 2 }}
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -5px rgba(0,0,0,0.1)' }}
+                                formatter={(value: number | undefined) => [formatValue(value || 0), "Сума"]}
+                                labelFormatter={(label) => `Дата: ${label}`}
                             />
                             <Area 
                                 type="monotone" 
@@ -94,11 +97,13 @@ export default function IncomeChart({ data }: IncomeChartProps) {
                                 axisLine={false} 
                                 tickLine={false} 
                                 tick={{ fill: '#9ca3af', fontSize: 12 }} 
-                                tickFormatter={(val) => `${val / 1000}k`}
+                                tickFormatter={(val) => Number(val).toLocaleString("uk-UA")}
                             />
                             <Tooltip 
                                 cursor={{ fill: '#f9fafb' }}
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -5px rgba(0,0,0,0.1)' }}
+                                formatter={(value: number | undefined) => [formatValue(value || 0), "Сума"]}
+                                labelFormatter={(label) => `Дата: ${label}`}
                             />
                             <Bar dataKey="amount" fill="#3b82f6" radius={[6, 6, 6, 6]} />
                         </BarChart>

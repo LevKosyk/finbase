@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/Input";
 
 export default function OnboardingPage() {
   const [name, setName] = useState("");
-  const [group, setGroup] = useState<number>(3);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -27,7 +26,7 @@ export default function OnboardingPage() {
         await updateProfile({ name });
 
         // 3. Update FOP settings
-        await updateFOPSettings({ group });
+        await updateFOPSettings({ group: 3 });
 
         router.push("/dashboard");
     } catch (e) {
@@ -35,13 +34,6 @@ export default function OnboardingPage() {
         router.push("/dashboard");
     }
   };
-
-  const groups = [
-    { id: 1, title: "1 група", desc: "Спрощена система (параметри задаються у налаштуваннях)" },
-    { id: 2, title: "2 група", desc: "Спрощена система (параметри задаються у налаштуваннях)" },
-    { id: 3, title: "3 група", desc: "Спрощена система (параметри задаються у налаштуваннях)", recommended: true },
-    { id: 4, title: "4 група", desc: "Окрема група (параметри задаються у налаштуваннях)" },
-  ];
 
   return (
     <AuthLayout
@@ -52,7 +44,7 @@ export default function OnboardingPage() {
       stepContent={{
         icon: <Check className="w-24 h-24 text-white" />,
         title: "Налаштування профілю",
-        description: "Вкажіть вашу групу ФОП для автоматизації податкового обліку."
+        description: "Сервіс налаштований для ФОП 3 групи."
       }}
     >
       <div className="space-y-6">
@@ -68,30 +60,17 @@ export default function OnboardingPage() {
 
         <div>
            <label className="block text-sm font-medium text-gray-700 mb-2">Група ФОП</label>
-           <div className="grid grid-cols-1 gap-3">
-             {groups.map((g) => (
-               <label key={g.id} className={`relative flex items-center p-4 rounded-xl border cursor-pointer transition-all duration-200 ${group === g.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}>
-                  <input 
-                    type="radio" 
-                    name="group" 
-                    className="sr-only" 
-                    checked={group === g.id}
-                    onChange={() => setGroup(g.id)}
-                  />
-                  <div className="flex-1">
-                     <div className="flex items-center gap-2">
-                          <span className={`font-bold ${group === g.id ? 'text-gray-900' : 'text-gray-700'}`}>{g.title}</span>
-                          {g.recommended && (
-                              <span className="px-2 py-0.5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold">Рекомендовано</span>
-                          )}
-                     </div>
-                     <p className={`text-sm mt-1 ${group === g.id ? 'text-gray-600' : 'text-gray-500'}`}>{g.desc}</p>
-                  </div>
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${group === g.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
-                     {group === g.id && <Check className="w-4 h-4" />}
-                  </div>
-               </label>
-             ))}
+           <div className="relative flex items-center p-4 rounded-xl border border-blue-500 bg-blue-50">
+             <div className="flex-1">
+               <div className="flex items-center gap-2">
+                 <span className="font-bold text-gray-900">3 група</span>
+                 <span className="px-2 py-0.5 rounded-full bg-blue-200 text-blue-800 text-xs font-bold">Активна</span>
+               </div>
+               <p className="text-sm mt-1 text-gray-600">Для цього продукту доступна тільки 3 група ФОП.</p>
+             </div>
+             <div className="w-6 h-6 rounded-full flex items-center justify-center bg-blue-500 text-white">
+               <Check className="w-4 h-4" />
+             </div>
            </div>
         </div>
         

@@ -9,9 +9,8 @@ import {
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
-import { getAIResponse } from "@/app/actions/chat";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Message {
   id: string;
@@ -56,11 +55,28 @@ export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperPr
 
     try {
       const history = [...messages, userMessage].map((m) => ({ role: m.role, content: m.content }));
-      const result = await getAIResponse(history, pathname);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          messages: history,
+          currentPath: pathname,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || "Не вдалося отримати відповідь");
+      }
       const assistant: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: result.error || result.content || "Не вдалося сформувати відповідь.",
+        content: result.assistant?.content || result.choices?.[0]?.message?.content || "Не вдалося сформувати відповідь.",
       };
       setMessages((prev) => [...prev, assistant]);
     } catch {
@@ -91,8 +107,7 @@ export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialMessage]);
 
-  const handleSend = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const value = input;
@@ -181,25 +196,30 @@ export default function AIHelper({ isOpen, onClose, initialMessage }: AIHelperPr
 
         {/* Input Area */}
         <div className="p-4 border-t border-gray-100 bg-white">
-            <form 
-                onSubmit={handleSend}
-                className="flex items-center gap-2"
-            >
-                <Input
+            <div className="flex items-end gap-2">
+                <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
                     placeholder="Запитайте щось..."
-                    className="flex-1 !bg-gray-100 !border-none"
+                    rows={1}
+                    className="flex-1 min-h-[44px] max-h-40 resize-none overflow-y-auto rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm leading-6 text-gray-900 placeholder:text-gray-500 outline-none transition focus:border-[var(--fin-primary)] focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                 />
                 <Button 
-                    type="submit"
+                    type="button"
+                    onClick={() => void handleSend()}
                     disabled={!input.trim() || isTyping}
                     size="md"
                     className="!px-4"
                     rightIcon={<SendHorizontal className="w-5 h-5" />}
                 >
                 </Button>
-            </form>
+            </div>
             <div className="text-center mt-2">
                     <p className="text-[10px] text-gray-400">
                     Finbase AI • Context mode

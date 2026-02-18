@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { resend } from "@/lib/resend";
+import { cacheKey, withRedisCache } from "@/lib/redis-cache";
 import {
   buildDpsChecklist,
   buildObligationsTimeline,
@@ -10,6 +11,8 @@ import {
   validateTaxRules,
 } from "@/lib/compliance";
 import { measureAction } from "@/lib/performance";
+import { unstable_cache } from "next/cache";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 function getPeriodDates(period?: string | null, now = new Date()) {
   if (period === "monthly") {
@@ -40,53 +43,69 @@ export async function getComplianceOverview() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  await enforceUserFopGroup3(user.id, "action.compliance.overview");
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { settings: true }
-  });
-  if (!dbUser?.settings) return null;
+  const redisKey = cacheKey("user", user.id, "compliance-overview");
+  return withRedisCache(redisKey, 120, async () => await unstable_cache(
+    async () => {
+      const settings = await prisma.fOPSettings.findUnique({
+        where: { userId: user.id },
+      });
+      if (!settings) return null;
 
-  const settings = dbUser.settings;
-  const period = getPeriodDates(settings.reportingPeriod);
-  const incomes = await prisma.income.findMany({
-    where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
-  });
-  const expenses = await prisma.expense.findMany({
-    where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
-  });
+      const period = getPeriodDates(settings.reportingPeriod);
+      const [incomeAgg, expenseAgg, incomeCount, expenseCount] = await Promise.all([
+        prisma.income.aggregate({
+          where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
+          _sum: { amount: true },
+        }),
+        prisma.expense.aggregate({
+          where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
+          _sum: { amount: true },
+        }),
+        prisma.income.count({
+          where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
+        }),
+        prisma.expense.count({
+          where: { userId: user.id, deletedAt: null, date: { gte: period.start, lte: period.end } },
+        }),
+      ]);
 
-  const totalIncome = incomes.reduce((acc, i) => acc + i.amount, 0);
-  const totalExpenses = expenses.reduce((acc, i) => acc + i.amount, 0);
-  const singleTax = totalIncome * (settings.taxRate || 0) + (settings.fixedMonthlyTax || 0) * period.months;
-  const esv = (settings.esvMonthly || 0) * period.months;
-  const totalTax = singleTax + esv;
+      const totalIncome = incomeAgg._sum.amount || 0;
+      const totalExpenses = expenseAgg._sum.amount || 0;
+      const singleTax = totalIncome * (settings.taxRate || 0) + (settings.fixedMonthlyTax || 0) * period.months;
+      const esv = (settings.esvMonthly || 0) * period.months;
+      const totalTax = singleTax + esv;
 
-  const taxWarnings = validateTaxRules(settings);
-  const missingFields = getRequiredProfileFields(settings);
-  const checklist = buildDpsChecklist(taxWarnings, missingFields, incomes.length > 0, expenses.length > 0);
-  const obligations = buildObligationsTimeline(settings);
+      const taxWarnings = validateTaxRules(settings);
+      const missingFields = getRequiredProfileFields(settings);
+      const checklist = buildDpsChecklist(taxWarnings, missingFields, incomeCount > 0, expenseCount > 0);
+      const obligations = buildObligationsTimeline(settings);
 
-  return {
-    profile: {
-      legalName: settings.legalName,
-      group: settings.group,
-      reportingPeriod: settings.reportingPeriod || "quarterly",
-      taxOffice: settings.taxOffice,
+      return {
+        profile: {
+          legalName: settings.legalName,
+          group: settings.group,
+          reportingPeriod: settings.reportingPeriod || "quarterly",
+          taxOffice: settings.taxOffice,
+        },
+        period,
+        totals: {
+          income: totalIncome,
+          expenses: totalExpenses,
+          tax: totalTax,
+          singleTax,
+          esv,
+        },
+        taxWarnings,
+        missingFields,
+        checklist,
+        obligations,
+      };
     },
-    period,
-    totals: {
-      income: totalIncome,
-      expenses: totalExpenses,
-      tax: totalTax,
-      singleTax,
-      esv,
-    },
-    taxWarnings,
-    missingFields,
-    checklist,
-    obligations,
-  };
+    [`compliance-overview-${user.id}`],
+    { tags: ["compliance-overview", `user-${user.id}`], revalidate: 3600 }
+  )());
   }, { budgetMs: 900 });
 }
 
@@ -99,6 +118,7 @@ export async function sendComplianceReminderEmail() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return { success: false, error: "Not authenticated" };
+  await enforceUserFopGroup3(user.id, "action.compliance.reminder_email");
 
   const overview = await getComplianceOverview();
   if (!overview) return { success: false, error: "No compliance data" };

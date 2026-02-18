@@ -13,6 +13,8 @@ import { documentRequestSchema } from "@/lib/validation";
 import { measureAction } from "@/lib/performance";
 import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 import { enforceRateLimit } from "@/lib/security";
+import { checkAndStoreIdempotency } from "@/lib/idempotency";
+import { getRequestContext } from "@/lib/request-security";
 
 interface DocumentRequest {
   type: DocumentType;
@@ -130,19 +132,23 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const ip = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
-  const burst = await enforceRateLimit(`documents:burst:${user.id}:${ip}`, 10, 60);
-  if (!burst.allowed) {
+  const { ip, deviceFingerprint } = getRequestContext(req);
+  const burstUser = await enforceRateLimit(`documents:burst:user:${user.id}`, 12, 60);
+  const burstIp = await enforceRateLimit(`documents:burst:ip:${ip}`, 40, 60);
+  const burstDevice = await enforceRateLimit(`documents:burst:device:${deviceFingerprint}`, 25, 60);
+  const burst = burstUser.allowed && burstIp.allowed && burstDevice.allowed;
+  if (!burst) {
     await logAuditEvent({
       userId: user.id,
       action: "security.alert.documents_rate_limited",
       entityType: "security",
-      metadata: { ip },
+      metadata: { ip, deviceFingerprint },
     });
     return NextResponse.json({ error: "Too many document requests" }, { status: 429 });
   }
-  const daily = await enforceRateLimit(`documents:daily:${user.id}`, 200, 60 * 60 * 24);
-  if (!daily.allowed) {
+  const dailyUser = await enforceRateLimit(`documents:daily:user:${user.id}`, 200, 60 * 60 * 24);
+  const dailyDevice = await enforceRateLimit(`documents:daily:device:${deviceFingerprint}`, 400, 60 * 60 * 24);
+  if (!dailyUser.allowed || !dailyDevice.allowed) {
     await logAuditEvent({
       userId: user.id,
       action: "security.alert.documents_daily_limit",
@@ -195,6 +201,16 @@ export async function POST(req: Request) {
       },
       { status: 400 }
     );
+  }
+
+  const idem = await checkAndStoreIdempotency({
+    scope: "api.documents.export",
+    userId: user.id,
+    key: req.headers.get("x-idempotency-key"),
+    ttlSeconds: 60 * 30,
+  });
+  if (!idem.ok && idem.duplicate) {
+    return NextResponse.json({ error: "Duplicate export request" }, { status: 409 });
   }
 
   const base = {

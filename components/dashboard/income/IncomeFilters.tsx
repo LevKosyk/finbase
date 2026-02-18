@@ -1,28 +1,31 @@
 "use client";
 
-import { Input } from "@/components/ui/Input";
 import { Search, Filter, X, Calendar, DollarSign, ListFilter } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Button } from "@/components/ui/Button";
+import { useDashboardStore } from "@/lib/store/dashboard-store";
 
 export default function IncomeFilters() {
     const searchParams = useSearchParams();
     const { replace } = useRouter();
-    
-    // Initial search value from URL
-    const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
-    
-    // Modal State
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const filters = useDashboardStore((state) => state.incomeFilters);
+    const setFilters = useDashboardStore((state) => state.setIncomeFilters);
+    const resetFilters = useDashboardStore((state) => state.resetIncomeFilters);
+    const isFilterOpen = useDashboardStore((state) => state.incomeFiltersOpen);
+    const setIsFilterOpen = useDashboardStore((state) => state.setIncomeFiltersOpen);
 
-    // Filter States
-    const [type, setType] = useState(searchParams.get('type') || 'all');
-    const [startDate, setStartDate] = useState(searchParams.get('startDate') || '');
-    const [endDate, setEndDate] = useState(searchParams.get('endDate') || '');
-    const [minAmount, setMinAmount] = useState(searchParams.get('minAmount') || '');
-    const [maxAmount, setMaxAmount] = useState(searchParams.get('maxAmount') || '');
+    useEffect(() => {
+        setFilters({
+            q: searchParams.get("q") || "",
+            type: searchParams.get("type") || "all",
+            startDate: searchParams.get("startDate") || "",
+            endDate: searchParams.get("endDate") || "",
+            minAmount: searchParams.get("minAmount") || "",
+            maxAmount: searchParams.get("maxAmount") || "",
+        });
+    }, [searchParams, setFilters]);
 
     const handleSearch = useDebouncedCallback((term) => {
         const params = new URLSearchParams(searchParams);
@@ -31,57 +34,54 @@ export default function IncomeFilters() {
         } else {
             params.delete('q');
         }
-        replace(`?${params.toString()}`);
+        replace(`?${params.toString()}`, { scroll: false });
     }, 300);
 
     const applyFilters = () => {
         const params = new URLSearchParams(searchParams);
         
         // Type
-        if (type && type !== 'all') params.set('type', type);
+        if (filters.type && filters.type !== 'all') params.set('type', filters.type);
         else params.delete('type');
 
         // Date
-        if (startDate) params.set('startDate', startDate);
+        if (filters.startDate) params.set('startDate', filters.startDate);
         else params.delete('startDate');
         
-        if (endDate) params.set('endDate', endDate);
+        if (filters.endDate) params.set('endDate', filters.endDate);
         else params.delete('endDate');
 
         // Amount
-        if (minAmount) params.set('minAmount', minAmount);
+        if (filters.minAmount) params.set('minAmount', filters.minAmount);
         else params.delete('minAmount');
 
-        if (maxAmount) params.set('maxAmount', maxAmount);
+        if (filters.maxAmount) params.set('maxAmount', filters.maxAmount);
         else params.delete('maxAmount');
 
-        replace(`?${params.toString()}`);
+        replace(`?${params.toString()}`, { scroll: false });
         setIsFilterOpen(false);
     };
 
     const clearFilters = () => {
-        setType('all');
-        setStartDate('');
-        setEndDate('');
-        setMinAmount('');
-        setMaxAmount('');
+        resetFilters();
         
         const params = new URLSearchParams(searchParams);
+        params.delete('q');
         params.delete('type');
         params.delete('startDate');
         params.delete('endDate');
         params.delete('minAmount');
         params.delete('maxAmount');
-        replace(`?${params.toString()}`);
+        replace(`?${params.toString()}`, { scroll: false });
         setIsFilterOpen(false);
     }
     
     const activeFiltersCount = [
-        type !== 'all', 
-        startDate, 
-        endDate, 
-        minAmount, 
-        maxAmount
+        filters.type !== 'all', 
+        filters.startDate, 
+        filters.endDate, 
+        filters.minAmount, 
+        filters.maxAmount
     ].filter(Boolean).length;
 
     return (
@@ -93,22 +93,20 @@ export default function IncomeFilters() {
                         type="text"
                         placeholder="Пошук за джерелом або типом..."
                         className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--fin-primary)]/20 focus:border-[var(--fin-primary)] transition-all font-medium placeholder:text-gray-400"
-                        defaultValue={searchTerm}
+                        value={filters.q}
                         onChange={(e) => {
-                            setSearchTerm(e.target.value);
+                            setFilters({ q: e.target.value });
                             handleSearch(e.target.value);
                         }}
                     />
                 </div>
                 
                 <div className="flex gap-2">
-                    <button 
+                    <Button
                         onClick={() => setIsFilterOpen(true)}
-                        className={`px-4 py-3 border rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${
-                            activeFiltersCount > 0 
-                                ? 'bg-[var(--fin-primary)] text-white border-[var(--fin-primary)] shadow-md shadow-blue-500/20' 
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                        }`}
+                        variant={activeFiltersCount > 0 ? "primary" : "secondary"}
+                        size="md"
+                        className="min-w-[132px]"
                     >
                         <Filter className="w-4 h-4" />
                         Фільтри
@@ -117,7 +115,7 @@ export default function IncomeFilters() {
                                 {activeFiltersCount}
                             </span>
                         )}
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -144,8 +142,8 @@ export default function IncomeFilters() {
                                     <ListFilter className="w-4 h-4 text-gray-400" /> Тип доходу
                                 </label>
                                 <select 
-                                    value={type}
-                                    onChange={(e) => setType(e.target.value)}
+                                    value={filters.type}
+                                    onChange={(e) => setFilters({ type: e.target.value })}
                                     className="w-full p-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium appearance-none cursor-pointer"
                                 >
                                     <option value="all">Всі типи</option>
@@ -165,8 +163,8 @@ export default function IncomeFilters() {
                                         <span className="text-xs text-gray-400 font-medium ml-1">З</span>
                                         <input 
                                             type="date"
-                                            value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
+                                            value={filters.startDate}
+                                            onChange={(e) => setFilters({ startDate: e.target.value })}
                                             className="w-full p-3 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium text-sm"
                                         />
                                     </div>
@@ -174,8 +172,8 @@ export default function IncomeFilters() {
                                         <span className="text-xs text-gray-400 font-medium ml-1">До</span>
                                         <input 
                                             type="date"
-                                            value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
+                                            value={filters.endDate}
+                                            onChange={(e) => setFilters({ endDate: e.target.value })}
                                             className="w-full p-3 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium text-sm"
                                         />
                                     </div>
@@ -192,8 +190,8 @@ export default function IncomeFilters() {
                                         <input 
                                             type="number"
                                             placeholder="Від"
-                                            value={minAmount}
-                                            onChange={(e) => setMinAmount(e.target.value)}
+                                            value={filters.minAmount}
+                                            onChange={(e) => setFilters({ minAmount: e.target.value })}
                                             className="w-full p-3 pl-8 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium text-sm placeholder:text-gray-400"
                                         />
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₴</span>
@@ -202,8 +200,8 @@ export default function IncomeFilters() {
                                         <input 
                                             type="number"
                                             placeholder="До"
-                                            value={maxAmount}
-                                            onChange={(e) => setMaxAmount(e.target.value)}
+                                            value={filters.maxAmount}
+                                            onChange={(e) => setFilters({ maxAmount: e.target.value })}
                                             className="w-full p-3 pl-8 bg-gray-50 border border-gray-100 focus:bg-white focus:border-[var(--fin-primary)] rounded-xl outline-none transition-all font-medium text-sm placeholder:text-gray-400"
                                         />
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">₴</span>

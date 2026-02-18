@@ -8,6 +8,7 @@ export async function GET() {
     const imports = await getStatementImports();
     const response = NextResponse.json({ imports });
     response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=120");
     return response;
   });
 }

@@ -21,7 +21,6 @@ import {
 import { useState } from "react";
 import AIHelper from "@/components/AIHelper";
 import { Button } from "@/components/ui/Button";
-import { motion } from "framer-motion";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,38 +29,38 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[var(--fin-background)] text-[var(--fin-text-main)] font-sans">
       {/* Navigation */}
-      <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-[0_2px_20px_-2px_rgba(0,0,0,0.02)] supports-[backdrop-filter]:bg-white/60">
-        <div className="container mx-auto px-6 h-[88px] flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
+      <header className="fixed top-0 w-full z-50 transition-all duration-300 bg-white/70 dark:bg-gray-950/80 backdrop-blur-xl border-b border-white/20 dark:border-gray-800 shadow-[0_2px_20px_-2px_rgba(0,0,0,0.02)] supports-[backdrop-filter]:bg-white/60 supports-[backdrop-filter]:dark:bg-gray-950/70">
+        <div className="container mx-auto px-6 h-[88px] flex items-center justify-between md:grid md:grid-cols-[1fr_auto_1fr] md:items-center">
+          <Link href="/" className="flex items-center gap-3 group md:justify-self-start">
             <div className="relative">
               <div className="absolute inset-0 bg-blue-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity rounded-xl"></div>
               <div className="relative w-11 h-11 bg-gradient-to-br from-[var(--fin-primary)] to-[#2563EB] rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform duration-300 group-hover:shadow-blue-500/30 ring-1 ring-white/20">
                 <Wallet className="w-6 h-6" />
               </div>
             </div>
-            <span className="text-2xl font-bold tracking-tight text-gray-900 group-hover:text-[var(--fin-primary)] transition-colors">Finbase</span>
+            <span className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 group-hover:text-[var(--fin-primary)] transition-colors">Finbase</span>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center bg-gray-50/50 p-1.5 rounded-full border border-gray-200/60 backdrop-blur-sm">
-            <Link href="#features" className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-[var(--fin-primary)] hover:bg-white rounded-full transition-all duration-200">
+          <nav className="hidden md:flex items-center bg-gray-50/50 dark:bg-gray-900/70 p-1.5 rounded-full border border-gray-200/60 dark:border-gray-700 backdrop-blur-sm md:justify-self-center">
+            <Link href="#features" className="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[var(--fin-primary)] hover:bg-white dark:hover:bg-gray-800 rounded-full transition-all duration-200">
               Переваги
             </Link>
-            <Link href="#how-it-works" className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-[var(--fin-primary)] hover:bg-white rounded-full transition-all duration-200">
+            <Link href="#how-it-works" className="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[var(--fin-primary)] hover:bg-white dark:hover:bg-gray-800 rounded-full transition-all duration-200">
               Як це працює
             </Link>
-            <Link href="#pricing" className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-[var(--fin-primary)] hover:bg-white rounded-full transition-all duration-200">
+            <Link href="#pricing" className="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[var(--fin-primary)] hover:bg-white dark:hover:bg-gray-800 rounded-full transition-all duration-200">
               Тарифи
             </Link>
-            <Link href="#faq" className="px-5 py-2 text-sm font-medium text-gray-600 hover:text-[var(--fin-primary)] hover:bg-white rounded-full transition-all duration-200">
+            <Link href="#faq" className="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[var(--fin-primary)] hover:bg-white dark:hover:bg-gray-800 rounded-full transition-all duration-200">
               FAQ
             </Link>
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4 md:justify-self-end">
             <Link
               href="/login"
-              className="text-sm font-semibold text-gray-600 hover:text-[var(--fin-primary)] transition-colors px-4"
+              className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-[var(--fin-primary)] transition-colors px-4"
             >
               Увійти
             </Link>
@@ -77,7 +76,7 @@ export default function HomePage() {
           <Button 
             variant="ghost"
             size="sm"
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors h-auto shadow-none"
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors h-auto shadow-none"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X /> : <Menu />}
@@ -86,13 +85,13 @@ export default function HomePage() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-b border-gray-100 p-6 flex flex-col gap-4 shadow-2xl animate-in slide-in-from-top-2">
-            <Link href="#features" className="text-lg font-medium text-gray-800 p-2 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Переваги</Link>
-            <Link href="#how-it-works" className="text-lg font-medium text-gray-800 p-2 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Як це працює</Link>
-            <Link href="#pricing" className="text-lg font-medium text-gray-800 p-2 hover:bg-gray-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Тарифи</Link>
-            <hr className="border-gray-100" />
+          <div className="md:hidden absolute top-full left-0 w-full bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-100 dark:border-gray-800 p-6 flex flex-col gap-4 shadow-2xl animate-in slide-in-from-top-2">
+            <Link href="#features" className="text-lg font-medium text-gray-800 dark:text-gray-100 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Переваги</Link>
+            <Link href="#how-it-works" className="text-lg font-medium text-gray-800 dark:text-gray-100 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Як це працює</Link>
+            <Link href="#pricing" className="text-lg font-medium text-gray-800 dark:text-gray-100 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Тарифи</Link>
+            <hr className="border-gray-100 dark:border-gray-800" />
             <div className="flex flex-col gap-3 mt-2">
-              <Link href="/login" className="text-center py-3 font-semibold text-gray-700 hover:bg-gray-50 rounded-xl border border-transparent hover:border-gray-200 transition-all">Увійти</Link>
+              <Link href="/login" className="text-center py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all">Увійти</Link>
               <Link href="/register" className="text-center py-3 rounded-xl bg-[var(--fin-primary)] text-white font-semibold shadow-lg shadow-blue-500/20">Створити акаунт</Link>
             </div>
           </div>
@@ -102,53 +101,28 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
         {/* Background Elements */}
-        <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            transition={{ duration: 1 }}
-            className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-blue-50 to-transparent -z-10" 
-        />
-        <div className="absolute -top-20 -right-20 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl -z-10" />
-        <div className="absolute top-40 -left-20 w-72 h-72 bg-indigo-400/10 rounded-full blur-3xl -z-10" />
+        <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-blue-50 dark:from-blue-950/40 to-transparent -z-10" />
+        <div className="absolute -top-20 -right-20 w-96 h-96 bg-blue-400/10 dark:bg-blue-500/20 rounded-full blur-3xl -z-10" />
+        <div className="absolute top-40 -left-20 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-500/20 rounded-full blur-3xl -z-10" />
 
         <div className="container mx-auto px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-[var(--fin-primary)] text-xs font-bold uppercase tracking-wide mb-8"
-          >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-[var(--fin-primary)] text-xs font-bold uppercase tracking-wide mb-8">
             <span className="w-2 h-2 rounded-full bg-[var(--fin-primary)] animate-pulse"></span>
             Для ФОП 3 групи
-          </motion.div>
+          </div>
           
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.1]"
-          >
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100 mb-6 leading-[1.1]">
             Ваша бухгалтерія <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--fin-primary)] to-[var(--fin-info)]">
               проста як ніколи
             </span>
-          </motion.h1>
+          </h1>
           
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed"
-          >
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed">
             Повний контроль над податками та звітністю. Забудьте про Excel та складні сервіси. Ми зробили все за вас.
-          </motion.p>
+          </p>
           
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register"
               className="w-full sm:w-auto inline-flex items-center justify-center h-14 px-8 rounded-full bg-[var(--fin-primary)] text-white text-lg font-semibold shadow-xl shadow-blue-600/20 hover:bg-[var(--fin-secondary)] hover:shadow-2xl hover:shadow-blue-600/30 transition-all transform hover:-translate-y-1"
@@ -157,18 +131,13 @@ export default function HomePage() {
             </Link>
             <Link
               href="#how-it-works"
-              className="w-full sm:w-auto inline-flex items-center justify-center h-14 px-8 rounded-full bg-white text-gray-700 border border-gray-200 text-lg font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center h-14 px-8 rounded-full bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-lg font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all"
             >
               Як це працює
             </Link>
-          </motion.div>
+          </div>
 
-          <motion.div 
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             transition={{ delay: 0.8, duration: 1 }}
-             className="mt-16 flex flex-wrap justify-center gap-8 text-sm font-medium text-gray-500"
-          >
+          <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm font-medium text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-[var(--fin-success)]" />
               <span>Швидка реєстрація</span>
@@ -181,7 +150,7 @@ export default function HomePage() {
               <CheckCircle2 className="w-5 h-5 text-[var(--fin-success)]" />
               <span>Безпека даних</span>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -259,62 +228,39 @@ export default function HomePage() {
       <section id="how-it-works" className="py-24 bg-[var(--fin-primary)] text-white overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
         <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
+          <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Як це працює?</h2>
             <p className="text-blue-100 text-lg max-w-2xl mx-auto">
               Три прості кроки до повного порядку у фінансах
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            <motion.div 
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="text-center relative"
-            >
+            <div className="text-center relative">
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 1
               </div>
               <h3 className="text-xl font-bold mb-3">Реєстрація</h3>
               <p className="text-blue-100">Створіть акаунт та вкажіть базові дані про ваш ФОП.</p>
-            </motion.div>
+            </div>
             <div className="hidden md:block absolute top-10 left-[20%] w-[20%] h-0.5 bg-gradient-to-r from-white/10 to-white/40"></div>
             
-            <motion.div 
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="text-center relative"
-            >
+            <div className="text-center relative">
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 2
               </div>
               <h3 className="text-xl font-bold mb-3">Внесення доходів</h3>
               <p className="text-blue-100">Додавайте суми надходжень у міру їх отримання.</p>
-            </motion.div>
+            </div>
             <div className="hidden md:block absolute top-10 right-[20%] w-[20%] h-0.5 bg-gradient-to-r from-white/40 to-white/10"></div>
 
-            <motion.div 
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3 }}
-                className="text-center relative"
-            >
+            <div className="text-center relative">
               <div className="w-20 h-20 mx-auto bg-white/10 rounded-full flex items-center justify-center text-3xl font-bold mb-6 border border-white/20 backdrop-blur-sm">
                 3
               </div>
               <h3 className="text-xl font-bold mb-3">Звіти готові</h3>
               <p className="text-blue-100">Система сама розрахує податки та сформує звіти.</p>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -409,9 +355,9 @@ export default function HomePage() {
           
           <div className="space-y-6">
              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
-               <h3 className="font-bold text-lg text-gray-900 mb-2">Чи підходить це для 2 групи ФОП?</h3>
+               <h3 className="font-bold text-lg text-gray-900 mb-2">Для якої групи ФОП підходить Finbase?</h3>
                <p className="text-gray-600">
-                 Наразі сервіс оптимізовано виключно для ФОП 3 групи (5% ставка). Ми плануємо додати підтримку інших груп у майбутньому.
+                 Finbase працює виключно для ФОП 3 групи і заточений під її облік, податки та документи.
                </p>
              </div>
              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6">
@@ -499,9 +445,6 @@ export default function HomePage() {
               <Link href="https://linkedin.com/company/finbase" target="_blank" className="w-10 h-10 rounded-full bg-gray-200 hover:bg-[#0077b5] hover:text-white transition-all flex items-center justify-center text-gray-600">
                 <Linkedin className="w-5 h-5" />
               </Link>
-              <div className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors flex items-center justify-center">
-                 {/* Other social icons can go here */}
-              </div>
             </div>
           </div>
         </div>

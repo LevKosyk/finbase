@@ -27,27 +27,60 @@ const documentOptions: Array<{ id: DocType; label: string }> = [
   { id: "rakhunok", label: "Рахунок" },
 ];
 
-export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
+const defaultDraft = {
+  type: "declaration" as DocType,
+  format: "pdf" as DocFormat,
+  dateFrom: "",
+  dateTo: "",
+  number: "",
+  counterparty: "",
+  counterpartyTaxId: "",
+  description: "",
+  amount: "",
+  currency: "UAH",
+  selectedTemplateId: "",
+};
+
+function normalizeDraft(value: unknown = {}) {
+  const source: Partial<typeof defaultDraft> =
+    value && typeof value === "object" ? (value as Partial<typeof defaultDraft>) : {};
+  return {
+    ...defaultDraft,
+    ...source,
+    type: (source?.type ?? defaultDraft.type) as DocType,
+    format: (source?.format ?? defaultDraft.format) as DocFormat,
+  };
+}
+
+export default function DocumentGenerator(props: Partial<Props>) {
+  const defaultFrom = props?.defaultFrom || "";
+  const defaultTo = props?.defaultTo || "";
   const [isLoading, setIsLoading] = useState(false);
-  const [type, setType] = useState<DocType>("declaration");
-  const [format, setFormat] = useState<DocFormat>("pdf");
-  const [dateFrom, setDateFrom] = useState(defaultFrom);
-  const [dateTo, setDateTo] = useState(defaultTo);
-  const [number, setNumber] = useState("");
-  const [counterparty, setCounterparty] = useState("");
-  const [counterpartyTaxId, setCounterpartyTaxId] = useState("");
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("UAH");
+  const [draftState, setDraftState] = useState<Partial<typeof defaultDraft>>(() =>
+    normalizeDraft({
+      dateFrom: defaultFrom || "",
+      dateTo: defaultTo || "",
+    })
+  );
+  const draft = normalizeDraft(draftState);
+  const setDraft = (patch?: Partial<typeof defaultDraft>) => {
+    const nextPatch = patch || {};
+    setDraftState((prev) => ({
+      ...defaultDraft,
+      ...(prev || {}),
+      ...Object.fromEntries(Object.entries(nextPatch).filter(([, value]) => value !== undefined)),
+    }));
+  };
   const [errors, setErrors] = useState<string[]>([]);
   const [preview, setPreview] = useState<Record<string, string | number>[] | null>(null);
   const [templates, setTemplates] = useState<Array<{ id: string; type: string; name: string; version: number }>>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [history, setHistory] = useState<Array<{ id: string; type: string; format: string; number: string | null; payloadJson: any; createdAt: Date | string }>>([]);
 
+  const docType: DocType = draft?.type ?? "declaration";
+  const docFormat: DocFormat = draft?.format ?? "pdf";
   const needsCounterparty = useMemo(
-    () => type === "act" || type === "invoice" || type === "rakhunok",
-    [type]
+    () => docType === "act" || docType === "invoice" || docType === "rakhunok",
+    [docType]
   );
 
   useEffect(() => {
@@ -60,23 +93,32 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
   }, []);
 
   useEffect(() => {
-    const candidate = templates.find((t) => t.type === type);
-    if (candidate) setSelectedTemplateId(candidate.id);
-  }, [type, templates]);
+    const candidate = templates.find((t) => t.type === docType);
+    if (candidate && !draft.selectedTemplateId) setDraft({ selectedTemplateId: candidate.id });
+  }, [docType, draft.selectedTemplateId, templates]);
+
+  useEffect(() => {
+    if (!draft.dateFrom && defaultFrom) {
+      setDraft({ dateFrom: defaultFrom });
+    }
+    if (!draft.dateTo && defaultTo) {
+      setDraft({ dateTo: defaultTo });
+    }
+  }, [defaultFrom, defaultTo, draft.dateFrom, draft.dateTo]);
 
   async function buildPayload(extra?: { preview?: boolean; sourceGenerationId?: string }) {
     return {
-      type,
-      format,
-      dateFrom,
-      dateTo,
-      number: number || undefined,
-      counterparty: counterparty || undefined,
-      counterpartyTaxId: counterpartyTaxId || undefined,
-      description: description || undefined,
-      amount: amount ? Number(amount) : undefined,
-      currency,
-      templateId: selectedTemplateId || undefined,
+      type: docType,
+      format: docFormat,
+      dateFrom: draft.dateFrom,
+      dateTo: draft.dateTo,
+      number: draft.number || undefined,
+      counterparty: draft.counterparty || undefined,
+      counterpartyTaxId: draft.counterpartyTaxId || undefined,
+      description: draft.description || undefined,
+      amount: draft.amount ? Number(draft.amount) : undefined,
+      currency: draft.currency,
+      templateId: draft.selectedTemplateId || undefined,
       preview: extra?.preview,
       sourceGenerationId: extra?.sourceGenerationId,
     };
@@ -85,7 +127,7 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
   async function handleExport() {
     setIsLoading(true);
     setErrors([]);
-    trackEvent("document_export_started", { doc_type: type, doc_format: format });
+    trackEvent("document_export_started", { doc_type: docType, doc_format: docFormat });
     try {
       const response = await fetch("/api/documents", {
         method: "POST",
@@ -95,7 +137,7 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
 
       if (!response.ok) {
         const data = await response.json();
-        trackEvent("document_export_failed", { doc_type: type, doc_format: format, reason: data?.error || "export_failed" });
+        trackEvent("document_export_failed", { doc_type: docType, doc_format: docFormat, reason: data?.error || "export_failed" });
         if (data?.missing) {
           setErrors(data.missing as string[]);
         } else {
@@ -107,14 +149,14 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const ext = format === "pdf" ? "pdf" : "json";
+      const ext = docFormat === "pdf" ? "pdf" : "json";
       a.href = url;
-      a.download = `document-${type}.${ext}`;
+      a.download = `document-${docType}.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      trackEvent("document_export_success", { doc_type: type, doc_format: format });
+      trackEvent("document_export_success", { doc_type: docType, doc_format: docFormat });
       setHistory(await getDocumentHistory() as any);
     } finally {
       setIsLoading(false);
@@ -139,7 +181,7 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm p-6 md:p-8 space-y-6">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 md:p-8 space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Генератор документів</h2>
         <p className="text-gray-500 dark:text-gray-400 mt-1">Автозаповнення реквізитів ФОП та експорт у файл.</p>
@@ -156,109 +198,115 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Тип документу</label>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as DocType)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
-          >
-            {documentOptions.map((d) => (
-              <option key={d.id} value={d.id}>{d.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Формат</label>
-          <select
-            value={format}
-            onChange={(e) => setFormat(e.target.value as DocFormat)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
-          >
-            <option value="pdf">PDF</option>
-            <option value="json">JSON</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Шаблон</label>
-          <select
-            value={selectedTemplateId}
-            onChange={(e) => setSelectedTemplateId(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
-          >
-            {templates.filter((t) => t.type === type).map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.name} (v{tpl.version})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-end">
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              if (!selectedTemplateId) return;
-              const res = await createTemplateVersion({ templateId: selectedTemplateId });
-              if (res.success) {
-                const tpl = await getDocumentTemplates();
-                setTemplates(tpl.map((t) => ({ id: t.id, type: t.type, name: t.name, version: t.version })));
-              }
-            }}
-          >
-            Нова версія шаблону
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період від</label>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період до</label>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Номер</label>
-          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="DOC-001" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Сума</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="0.00" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Валюта</label>
-          <input value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
-        </div>
-      </div>
-
-      {needsCounterparty && (
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/50 p-4 md:p-5 space-y-4">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">Параметри документа</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Контрагент</label>
-            <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="Назва компанії/ПІБ" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Тип документу</label>
+            <select
+              value={docType}
+              onChange={(e) => setDraft({ type: e.target.value as DocType, selectedTemplateId: "" })}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+            >
+              {documentOptions.map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">ІПН контрагента</label>
-            <input value={counterpartyTaxId} onChange={(e) => setCounterpartyTaxId(e.target.value)} placeholder="1234567890" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Формат</label>
+            <select
+              value={docFormat}
+              onChange={(e) => setDraft({ format: e.target.value as DocFormat })}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+            >
+              <option value="pdf">PDF</option>
+              <option value="json">JSON</option>
+            </select>
           </div>
         </div>
-      )}
 
-      <div className="space-y-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Опис</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Опис послуг або товару" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr,auto] gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Шаблон</label>
+            <select
+              value={draft.selectedTemplateId}
+              onChange={(e) => setDraft({ selectedTemplateId: e.target.value })}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+            >
+              {templates.filter((t) => t.type === docType).map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name} (v{tpl.version})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                if (!draft.selectedTemplateId) return;
+                const res = await createTemplateVersion({ templateId: draft.selectedTemplateId });
+                if (res.success) {
+                  const tpl = await getDocumentTemplates();
+                  setTemplates(tpl.map((t) => ({ id: t.id, type: t.type, name: t.name, version: t.version })));
+                }
+              }}
+            >
+              Нова версія шаблону
+            </Button>
+          </div>
+        </div>
+      </section>
 
-      <div className="flex gap-2">
+      <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/50 p-4 md:p-5 space-y-4">
+        <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">Реквізити</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період від</label>
+            <input type="date" value={draft.dateFrom} onChange={(e) => setDraft({ dateFrom: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Період до</label>
+            <input type="date" value={draft.dateTo} onChange={(e) => setDraft({ dateTo: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Номер</label>
+            <input value={draft.number} onChange={(e) => setDraft({ number: e.target.value })} placeholder="DOC-001" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Сума</label>
+            <input value={draft.amount} onChange={(e) => setDraft({ amount: e.target.value })} type="number" placeholder="0.00" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Валюта</label>
+            <input value={draft.currency} onChange={(e) => setDraft({ currency: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100" />
+          </div>
+        </div>
+
+        {needsCounterparty && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Контрагент</label>
+              <input value={draft.counterparty} onChange={(e) => setDraft({ counterparty: e.target.value })} placeholder="Назва компанії/ПІБ" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">ІПН контрагента</label>
+              <input value={draft.counterpartyTaxId} onChange={(e) => setDraft({ counterpartyTaxId: e.target.value })} placeholder="1234567890" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Опис</label>
+          <textarea value={draft.description} onChange={(e) => setDraft({ description: e.target.value })} rows={3} placeholder="Опис послуг або товару" className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500" />
+        </div>
+      </section>
+
+      <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={handlePreview}>Превʼю</Button>
         <Button onClick={handleExport} isLoading={isLoading}>
           Згенерувати документ
@@ -273,7 +321,7 @@ export default function DocumentGenerator({ defaultFrom, defaultTo }: Props) {
           <p className="text-xs text-gray-600">Історія порожня.</p>
         ) : (
           history.map((item) => (
-            <div key={item.id} className="rounded-xl bg-white p-3 flex items-center justify-between gap-3">
+            <div key={item.id} className="rounded-xl bg-white border border-gray-100 p-3 flex items-center justify-between gap-3">
               <div className="text-xs text-gray-700">
                 {item.type} • {item.format.toUpperCase()} • {item.number || "без номера"} • {new Date(item.createdAt).toLocaleString("uk-UA")}
               </div>

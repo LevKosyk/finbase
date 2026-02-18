@@ -16,6 +16,8 @@ import {
   getTwoFactorStatus,
   revokeTrustedDevice,
 } from "@/app/actions/two-factor";
+import { changePassword } from "@/app/actions/password";
+import { createApiKey, getApiKeys, revokeApiKey } from "@/app/actions/api-keys";
 import { useToast } from "@/components/providers/ToastProvider";
 
 type OAuthProvider = "google" | "facebook" | "apple";
@@ -67,6 +69,11 @@ export default function SecurityPage() {
   const [setupQr, setSetupQr] = useState<string | null>(null);
   const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; label: string | null; lastUsedAt: Date | string }>>([]);
   const [alerts, setAlerts] = useState<string[]>([]);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [apiKeys, setApiKeys] = useState<Array<{ id: string; name: string; prefix: string; createdAt: string; revokedAt: string | null }>>([]);
+  const [newKeyName, setNewKeyName] = useState("Primary");
+  const [lastCreatedApiKey, setLastCreatedApiKey] = useState("");
   const toast = useToast();
 
   const relativeTime = useMemo(
@@ -140,6 +147,7 @@ export default function SecurityPage() {
       setTwoFactorEnabled(status.enabled);
       setTrustedDevices(await getTrustedDevices());
       setAlerts(await getSuspiciousActivityAlerts());
+      setApiKeys(await getApiKeys());
     })();
   }, []);
 
@@ -332,6 +340,106 @@ export default function SecurityPage() {
           >
             Підтвердити
           </Button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Зміна паролю</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">Потребує 2FA + re-auth.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <input
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Поточний пароль"
+            type="password"
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          />
+          <input
+            value={nextPassword}
+            onChange={(e) => setNextPassword(e.target.value)}
+            placeholder="Новий пароль"
+            type="password"
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          />
+          <Button
+            onClick={async () => {
+              const res = await changePassword(currentPassword, nextPassword);
+              if (!res.success) {
+                toast.error({ title: "Не вдалося змінити пароль", description: res.error });
+                return;
+              }
+              setCurrentPassword("");
+              setNextPassword("");
+              toast.success({ title: "Пароль змінено" });
+            }}
+          >
+            Змінити пароль
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">API-ключі</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">Створення/відкликання потребує 2FA + re-auth.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="Назва ключа"
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          />
+          <Button
+            onClick={async () => {
+              const res = await createApiKey(newKeyName);
+              if (!res.success) {
+                toast.error({ title: "Не вдалося створити ключ", description: res.error });
+                return;
+              }
+              setLastCreatedApiKey(res.apiKey || "");
+              setApiKeys(await getApiKeys());
+              toast.success({ title: "API-ключ створено" });
+            }}
+          >
+            Створити API-ключ
+          </Button>
+        </div>
+        {lastCreatedApiKey ? (
+          <div className="rounded-xl bg-amber-50 text-amber-900 px-3 py-2 text-sm break-all">
+            Збережіть ключ зараз (потім не показуємо): <span className="font-mono">{lastCreatedApiKey}</span>
+          </div>
+        ) : null}
+        <div className="space-y-2">
+          {apiKeys.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ключів ще немає.</p>
+          ) : (
+            apiKeys.map((k) => (
+              <div key={k.id} className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
+                <div>
+                  <p className="font-semibold text-gray-800 dark:text-gray-100">{k.name}</p>
+                  <p className="text-xs text-gray-500">{k.prefix}… · {new Date(k.createdAt).toLocaleString("uk-UA")}</p>
+                </div>
+                {k.revokedAt ? (
+                  <span className="text-xs font-bold text-red-600">Відкликано</span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={async () => {
+                      const res = await revokeApiKey(k.id);
+                      if (!res.success) {
+                        toast.error({ title: "Не вдалося відкликати ключ", description: res.error });
+                        return;
+                      }
+                      setApiKeys(await getApiKeys());
+                      toast.info({ title: "Ключ відкликано" });
+                    }}
+                  >
+                    Відкликати
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

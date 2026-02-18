@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ArrowUpRight, Calendar, TrendingUp } from "lucide-react";
 
 interface StatsProps {
@@ -11,7 +12,7 @@ interface StatsProps {
     }
 }
 
-export default function IncomeStats({ stats }: StatsProps) {
+function IncomeStats({ stats }: StatsProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-300">
@@ -46,3 +47,5 @@ export default function IncomeStats({ stats }: StatsProps) {
         </div>
     );
 }
+
+export default memo(IncomeStats);

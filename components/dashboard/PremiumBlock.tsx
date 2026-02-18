@@ -6,12 +6,8 @@ import Link from "next/link";
 
 export default function PremiumBlock() {
   return (
-    <div className="bg-gradient-to-br from-gray-900 via-slate-800 to-gray-950 rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden h-full flex flex-col justify-between group border border-white/5 hover:scale-[1.01] transition-transform duration-300">
-         
-         {/* Background Effects */}
-         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--fin-primary)]/10 rounded-full blur-[80px] -mr-16 -mt-16 pointer-events-none"></div>
-         
-         <div className="relative z-10 flex items-start justify-between">
+    <div className="bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 text-white shadow-sm h-full flex flex-col justify-between border border-white/10">
+         <div className="flex items-start justify-between">
              <div>
                 <h3 className="text-2xl font-bold mb-1 tracking-tight">Premium</h3>
                 <p className="text-gray-400 text-xs font-medium">Всі можливості</p>
@@ -21,7 +17,7 @@ export default function PremiumBlock() {
              </div>
          </div>
 
-         <div className="relative z-10 mt-auto pt-6">
+         <div className="mt-auto pt-4">
              <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-xs text-gray-300">
                     <Check className="w-3 h-3 text-green-400" />
@@ -35,7 +31,7 @@ export default function PremiumBlock() {
 
              <Link href="/dashboard/billing" className="block">
                 <Button 
-                    className="w-full bg-white text-gray-900 hover:bg-gray-50 border-0 font-bold h-10 rounded-xl shadow-lg hover:shadow-white/20 transition-all text-sm"
+                    className="w-full bg-white text-gray-900 hover:bg-gray-50 border-0 font-bold h-10 rounded-xl text-sm"
                 >
                     Детальніше
                 </Button>

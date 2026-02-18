@@ -6,12 +6,14 @@ import { useState, useTransition } from "react";
 import AuthLayout from "@/components/AuthLayout";
 import Link from "next/link";
 import AIHelper from "@/components/AIHelper";
-import { CheckCircle2, ArrowRight, RefreshCw } from "lucide-react";
+import { CheckCircle2, ArrowRight, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import { trackEvent } from "@/lib/analytics-client";
 import { useToast } from "@/components/providers/ToastProvider";
+import { beginTwoFactorSetup, confirmTwoFactorSetup } from "@/app/actions/two-factor";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,12 +21,22 @@ export default function RegisterPage() {
   const toast = useToast();
   const [isAIHelperOpen, setIsAIHelperOpen] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  const [step, setStep] = useState<'register' | 'verify'>('register');
+  const [step, setStep] = useState<'register' | 'verify' | 'twofactor'>('register');
   const [emailForVerify, setEmailForVerify] = useState("");
+  const [setupQr, setSetupQr] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
 
   const handleRegister = (formData: FormData) => {
     const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+    if (password !== confirmPassword) {
+      toast.error({ title: "Паролі не співпадають" });
+      return;
+    }
     trackEvent("signup_submitted", { has_terms: agreedToTerms });
     startTransition(async () => {
       const result = await signup(formData);
@@ -48,17 +60,23 @@ export default function RegisterPage() {
             toast.error({ title: "Помилка підтвердження", description: result.error });
         } else if (result?.success) {
             trackEvent("signup_verify_success");
-            router.push("/onboarding");
+            setStep("twofactor");
         }
     });
   }
 
   return (
     <AuthLayout
-      title={step === 'register' ? "Створити акаунт" : "Підтвердження Email"}
-      subtitle={step === 'register' ? "Почніть керувати своїми фінансами ефективно вже сьогодні." : `Ми відправили код підтвердження на ${emailForVerify}`}
-      currentStep={step === 'register' ? 1 : 2}
-      totalSteps={2}
+      title={step === 'register' ? "Створити акаунт" : step === "verify" ? "Підтвердження Email" : "Захист акаунта"}
+      subtitle={
+        step === "register"
+          ? "Почніть керувати своїми фінансами ефективно вже сьогодні."
+          : step === "verify"
+            ? `Ми відправили код підтвердження на ${emailForVerify}`
+            : "Рекомендуємо увімкнути двофакторну автентифікацію для безпеки акаунта."
+      }
+      currentStep={step === 'register' ? 1 : step === "verify" ? 2 : 3}
+      totalSteps={3}
       stepContent={{
         icon: <CheckCircle2 className="w-24 h-24 text-white" />,
         title: "Швидкий старт",
@@ -105,10 +123,37 @@ export default function RegisterPage() {
                 />
                 <Input
                     label="Пароль"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     name="password"
                     required
                     placeholder="••••••••"
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? "Сховати пароль" : "Показати пароль"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
+                />
+                <Input
+                    label="Підтвердіть пароль"
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    required
+                    placeholder="••••••••"
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((value) => !value)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label={showConfirmPassword ? "Сховати пароль" : "Показати пароль"}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
                 />
                 
                 <div className="flex items-start gap-3">
@@ -125,11 +170,11 @@ export default function RegisterPage() {
                     </button>
                     <label className="text-sm text-gray-600 leading-relaxed">
                         Я погоджуюсь з{" "}
-                        <Link href="/terms" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                        <Link href="/terms?from=register" className="text-[var(--fin-primary)] font-semibold hover:underline">
                             умовами використання
                         </Link>
                         {" "}та{" "}
-                        <Link href="/privacy" className="text-[var(--fin-primary)] font-semibold hover:underline">
+                        <Link href="/privacy?from=register" className="text-[var(--fin-primary)] font-semibold hover:underline">
                             політикою конфіденційності
                         </Link>
                     </label>
@@ -194,6 +239,69 @@ export default function RegisterPage() {
                     </button>
                 </div>
             </form>
+        )}
+
+        {step === "twofactor" && (
+          <div className="space-y-4">
+            {!setupQr ? (
+              <>
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => {
+                    startTransition(async () => {
+                      const res = await beginTwoFactorSetup();
+                      if (!res.success) {
+                        toast.error({ title: "Не вдалося почати налаштування 2FA", description: res.error });
+                        return;
+                      }
+                      setSetupQr(res.qrDataUrl || null);
+                    });
+                  }}
+                  isLoading={isPending}
+                >
+                  Увімкнути 2FA зараз
+                </Button>
+                <Button type="button" variant="secondary" className="w-full" onClick={() => router.push("/onboarding")}>
+                  Налаштувати пізніше
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex justify-center">
+                  <Image src={setupQr} alt="2FA QR" width={184} height={184} className="w-46 h-46 border rounded-xl p-2 bg-white" unoptimized />
+                </div>
+                <Input
+                  label="Код з Authenticator"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  placeholder="123456"
+                  autoComplete="one-time-code"
+                />
+                <Button
+                  className="w-full"
+                  isLoading={isPending}
+                  disabled={twoFactorCode.trim().length < 6 || isPending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      const res = await confirmTwoFactorSetup(twoFactorCode.trim());
+                      if (!res.success) {
+                        toast.error({ title: "Невірний код 2FA", description: res.error });
+                        return;
+                      }
+                      toast.success({ title: "2FA увімкнено" });
+                      router.push("/onboarding");
+                    });
+                  }}
+                >
+                  Підтвердити та продовжити
+                </Button>
+                <Button type="button" variant="secondary" className="w-full" onClick={() => router.push("/onboarding")}>
+                  Пропустити
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <AIHelper isOpen={isAIHelperOpen} onClose={() => setIsAIHelperOpen(false)} />

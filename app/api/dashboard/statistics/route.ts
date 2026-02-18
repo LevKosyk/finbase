@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     const stats = await getStatistics(period, from, to);
     const response = NextResponse.json({ stats });
     response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    response.headers.set("Cache-Control", "private, max-age=45, stale-while-revalidate=180");
     return response;
   }, { budgetMs: 900 });
 }

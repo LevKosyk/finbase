@@ -27,6 +27,7 @@ export async function GET(req: Request) {
 
     const response = NextResponse.json({ expenses, stats });
     response.headers.set("Server-Timing", `total;dur=${Date.now() - startedAt}`);
+    response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=120");
     return response;
   });
 }

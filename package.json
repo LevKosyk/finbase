@@ -11,6 +11,7 @@
     "security:audit": "npm audit --audit-level=high",
     "security:osv": "npx osv-scanner --lockfile=package-lock.json",
     "security:secrets": "gitleaks detect --source . --no-git",
+    "security:ownership": "node scripts/ownership-guard-check.mjs",
     "precommit:security": "bash ./scripts/precommit-security.sh"
   },
   "dependencies": {
@@ -44,7 +45,8 @@
     "tailwind-merge": "^3.4.0",
     "use-debounce": "^10.1.0",
     "xlsx": "^0.18.5",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

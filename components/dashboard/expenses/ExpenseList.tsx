@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Trash2, Edit2 } from "lucide-react";
 import { deleteExpense, restoreExpense } from "@/app/actions/expenses";
 import EditExpenseModal from "@/components/dashboard/expenses/EditExpenseModal";
@@ -8,12 +8,13 @@ import DataState from "@/components/ui/DataState";
 import { useToast } from "@/components/providers/ToastProvider";
 import { subscribeDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 function sortExpenses(rows: ExpenseRow[]) {
   return [...rows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export default function ExpenseList({ initialExpenses }: { initialExpenses: ExpenseRow[] }) {
+function ExpenseList({ initialExpenses }: { initialExpenses: ExpenseRow[] }) {
   const [rows, setRows] = useState<ExpenseRow[]>(() => sortExpenses(initialExpenses || []));
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -67,13 +68,13 @@ export default function ExpenseList({ initialExpenses }: { initialExpenses: Expe
           if (restored.success) {
             setRows((prev) => sortExpenses([target, ...prev]));
             toast.info({ title: "Витрату відновлено" });
-            void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+            queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
           } else {
             toast.error({ title: "Не вдалося відновити витрату" });
           }
         },
       });
-      void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+      queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
     } else {
       setRows((prev) => sortExpenses([target, ...prev]));
       toast.error({ title: "Не вдалося видалити витрату", description: result.error || "Спробуйте ще раз" });
@@ -145,10 +146,12 @@ export default function ExpenseList({ initialExpenses }: { initialExpenses: Expe
         isOpen={!!editingExpense}
         onClose={() => {
           setEditingExpense(null);
-          void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+          queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
         }}
         expense={editingExpense}
       />
     </>
   );
 }
+
+export default memo(ExpenseList);

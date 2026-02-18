@@ -2,7 +2,14 @@
 
 import useSWR from "swr";
 
-const fetcher = async (url: string): Promise<{ flags: Record<string, boolean> }> => {
+type FeatureFlagMeta = {
+  enabled: boolean;
+  rolloutPercent: number;
+  matched: boolean;
+  bucket: number | null;
+};
+
+const fetcher = async (url: string): Promise<{ flags: Record<string, boolean>; meta?: Record<string, FeatureFlagMeta> }> => {
   const response = await fetch(url, { credentials: "include" });
   if (!response.ok) throw new Error("Failed to fetch feature flags");
   return response.json();
@@ -15,6 +22,7 @@ export default function FeatureFlagsPanel() {
   });
 
   const flags = data?.flags || {};
+  const meta = data?.meta || {};
   const keys = Object.keys(flags);
 
   return (
@@ -27,16 +35,32 @@ export default function FeatureFlagsPanel() {
           <div className="grid grid-cols-1 gap-2">
             {keys.map((key) => (
               <div key={key} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 dark:bg-gray-900">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{key}</span>
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                    flags[key]
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                      : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-                  }`}
-                >
-                  {flags[key] ? "ON" : "OFF"}
-                </span>
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{key}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Rollout: {meta[key]?.rolloutPercent ?? 100}% {typeof meta[key]?.bucket === "number" ? `· bucket ${meta[key]?.bucket}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                      meta[key]?.enabled
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                        : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {meta[key]?.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                      flags[key]
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {flags[key] ? "ON" : "OFF"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

@@ -1,26 +1,15 @@
 "use client";
 
-import { motion } from "framer-motion";
-
-export const MotionDiv = motion.div;
-
 export default function MotionWrapper({ 
   children, 
-  delay = 0,
   className = "" 
 }: { 
   children: React.ReactNode; 
-  delay?: number;
   className?: string;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay, ease: "easeOut" }}
-      className={className}
-    >
+    <div className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out ${className}`}>
       {children}
-    </motion.div>
+    </div>
   );
 }

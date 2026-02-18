@@ -1,26 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { 
   Save, 
   Mail,
-  Loader2,
-  Upload
+  Loader2
 } from "lucide-react";
 import { getUser } from "@/app/actions/auth";
 import { updateProfile } from "@/app/actions/settings";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { supabase } from "@/lib/supabaseClient";
 import MotionWrapper from "@/components/MotionWrapper";
 import { useToast } from "@/components/providers/ToastProvider";
-import Image from "next/image";
+import { useDashboardStore } from "@/lib/store/dashboard-store";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const profileDraft = useDashboardStore((state) => state.profileDraft);
+  const setProfileDraft = useDashboardStore((state) => state.setProfileDraft);
   
   type UserProfileData = {
     id: string;
@@ -39,57 +38,43 @@ export default function SettingsPage() {
         const user = await getUser();
         if (user) {
             setUserData(user);
+            if (profileDraft.userId !== user.id) {
+              setProfileDraft({
+                userId: user.id,
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
+              });
+            }
         }
         setLoading(false);
     }
     loadData();
-  }, []);
+  }, [profileDraft.userId, setProfileDraft]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!userData) return;
       setSaving(true);
       const res = await updateProfile({ 
-          firstName: userData.firstName ?? undefined,
-          lastName: userData.lastName ?? undefined,
-          name: `${userData.firstName ?? ""} ${userData.lastName ?? ""}`.trim(),
-          avatarUrl: userData.avatarUrl ?? undefined
+          firstName: profileDraft.firstName || undefined,
+          lastName: profileDraft.lastName || undefined,
+          name: `${profileDraft.firstName || ""} ${profileDraft.lastName || ""}`.trim(),
       });
       setSaving(false);
-      if(res.success) toast.success({ title: "Профіль оновлено" });
-      else toast.error({ title: "Помилка оновлення профілю" });
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file || !userData) return;
-      
-      try {
-          setSaving(true);
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${userData.id}-${Math.random()}.${fileExt}`;
-          const filePath = `${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, file);
-
-          if (uploadError) {
-               const reader = new FileReader();
-               reader.onload = (ev) => {
-                   setUserData((prev) => (prev ? { ...prev, avatarUrl: ev.target?.result as string } : prev));
-               };
-               reader.readAsDataURL(file);
-               toast.info({ title: "Storage недоступний", description: "Використано локальний preview аватара." });
-          } else {
-             const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-             setUserData((prev) => (prev ? { ...prev, avatarUrl: publicUrl } : prev));
-          }
-      } catch (error) {
-          console.error(error);
-      } finally {
-          setSaving(false);
+      if (res.success) {
+        setUserData((prev) =>
+          prev
+            ? {
+                ...prev,
+                firstName: profileDraft.firstName,
+                lastName: profileDraft.lastName,
+                name: `${profileDraft.firstName} ${profileDraft.lastName}`.trim(),
+              }
+            : prev
+        );
+        toast.success({ title: "Профіль оновлено" });
       }
+      else toast.error({ title: "Помилка оновлення профілю" });
   };
 
   if (loading) {
@@ -110,43 +95,11 @@ export default function SettingsPage() {
 
   return (
     <MotionWrapper>
-      <div className="bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-200 dark:border-gray-700 shadow-sm p-8 min-h-[500px] relative overflow-hidden">
-        
-        {/* Decorative background blob */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[var(--fin-primary)]/5 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="max-w-3xl relative z-10">
-            <div className="flex flex-col md:flex-row gap-8 mb-10 pb-10 border-b border-gray-100 dark:border-gray-700 items-start">
-                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border-4 border-white dark:border-gray-800 shadow-xl flex items-center justify-center text-gray-400 dark:text-gray-300 text-4xl font-bold overflow-hidden relative">
-                         {userData?.avatarUrl ? (
-                            <Image
-                              src={userData.avatarUrl}
-                              alt="Avatar"
-                              fill
-                              sizes="128px"
-                              className="object-cover"
-                              unoptimized
-                            />
-                         ) : (
-                            userData?.name?.[0] || userData?.firstName?.[0] || "U"
-                         )}
-                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Upload className="w-8 h-8 text-white" />
-                         </div>
-                    </div>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                    />
-                </div>
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Особиста інформація</h2>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Керуйте своїми особистими даними та аватаром.</p>
-                </div>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 min-h-[500px]">
+        <div className="max-w-4xl">
+            <div className="mb-8 pb-8 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Особиста інформація</h2>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Керуйте своїми персональними даними.</p>
             </div>
 
             <form onSubmit={handleProfileSave} className="space-y-6">
@@ -154,15 +107,15 @@ export default function SettingsPage() {
                     <Input 
                         label="Ім'я"
                         type="text" 
-                        value={userData?.firstName || ""} 
-                        onChange={(e) => setUserData((prev) => (prev ? { ...prev, firstName: e.target.value } : prev))}
+                        value={profileDraft.firstName} 
+                        onChange={(e) => setProfileDraft({ firstName: e.target.value })}
                         placeholder="Іван"
                     />
                     <Input 
                         label="Прізвище"
                         type="text" 
-                        value={userData?.lastName || ""} 
-                        onChange={(e) => setUserData((prev) => (prev ? { ...prev, lastName: e.target.value } : prev))}
+                        value={profileDraft.lastName} 
+                        onChange={(e) => setProfileDraft({ lastName: e.target.value })}
                         placeholder="Петренко"
                     />
                 </div>
@@ -172,7 +125,7 @@ export default function SettingsPage() {
                     type="email" 
                     value={userData?.email || ""} 
                     disabled 
-                    leftIcon={<Mail className="w-4 h-4" />}
+                        leftIcon={<Mail className="w-4 h-4" />}
                 />
 
                 <div className="pt-6">

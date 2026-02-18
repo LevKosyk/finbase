@@ -33,6 +33,24 @@ async function syncQueue() {
 
 export default function PWAProvider() {
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            void registration.unregister();
+          });
+        });
+      }
+      if ("caches" in window) {
+        caches.keys().then((keys) => {
+          keys.filter((key) => key.startsWith("finbase-shell-")).forEach((key) => {
+            void caches.delete(key);
+          });
+        });
+      }
+      return;
+    }
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }

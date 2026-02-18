@@ -13,6 +13,7 @@ import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 import { checkAndStoreIdempotency } from "@/lib/idempotency";
 import { enforceRateLimit } from "@/lib/security";
 import { headers } from "next/headers";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   "Офіс",
@@ -38,6 +39,7 @@ export async function createExpense(data: ExpenseData, idempotencyKey?: string) 
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  await enforceUserFopGroup3(user.id, "action.expense.create");
   const ip = ((await headers()).get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
   const burst = await enforceRateLimit(`action:expense:create:burst:${user.id}:${ip}`, 20, 60);
   if (!burst.allowed) {
@@ -90,6 +92,7 @@ export async function getExpenseCategories() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return DEFAULT_EXPENSE_CATEGORIES;
+  await enforceUserFopGroup3(user.id, "action.expense.categories");
 
   const key = cacheKey("user", user.id, "expense-categories");
   return withRedisCache(key, 600, async () => {
@@ -108,6 +111,7 @@ export async function updateExpense(id: string, data: Partial<ExpenseData>) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  await enforceUserFopGroup3(user.id, "action.expense.update");
 
   try {
     const parsed = expenseDataSchema.partial().safeParse(data);
@@ -145,6 +149,7 @@ export async function deleteExpense(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  await enforceUserFopGroup3(user.id, "action.expense.delete");
 
   try {
     await prisma.expense.update({
@@ -175,6 +180,7 @@ export async function restoreExpense(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  await enforceUserFopGroup3(user.id, "action.expense.restore");
 
   try {
     await prisma.expense.update({
@@ -213,6 +219,7 @@ export async function getExpenses(searchParams?: {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return [];
+  await enforceUserFopGroup3(user.id, "action.expense.list");
 
   try {
     const filters: Prisma.ExpenseWhereInput = {
@@ -264,6 +271,7 @@ export async function getExpenseStats() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return { total: 0, change: 0, average: 0, count: 0 };
+  await enforceUserFopGroup3(user.id, "action.expense.stats");
 
   const redisKey = cacheKey("user", user.id, "expense-stats");
   return withRedisCache(redisKey, 120, async () => await unstable_cache(
@@ -319,6 +327,7 @@ export async function importExpenses(rows: ExpenseImportRow[], idempotencyKey?: 
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
+  await enforceUserFopGroup3(user.id, "action.expense.import");
   if (rows.length > 5000) {
     return { success: false, error: "Too many rows. Limit is 5000." };
   }

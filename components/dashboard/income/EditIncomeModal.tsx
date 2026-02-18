@@ -6,6 +6,8 @@ import { X, Save } from "lucide-react";
 import { updateIncome } from "@/app/actions/income";
 import { emitDashboardEvent, type IncomeRow } from "@/lib/dashboard-events";
 import { useToast } from "@/components/providers/ToastProvider";
+import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 interface EditIncomeModalProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ export default function EditIncomeModal({ isOpen, onClose, income }: EditIncomeM
   const [date, setDate] = useState("");
   const [type, setType] = useState("job");
   const toast = useToast();
+  const { mutate } = useSWRConfig();
 
   useEffect(() => {
     if (income) {
@@ -57,6 +60,7 @@ export default function EditIncomeModal({ isOpen, onClose, income }: EditIncomeM
       });
       if (result.success && result.income) {
         emitDashboardEvent("income:update:optimistic", { id: income.id, row: result.income });
+        queueDashboardRevalidateByPriority(mutate, { immediate: ["income"], deferred: ["statistics"] });
         toast.success({ title: "Дохід оновлено" });
         onClose();
       } else {

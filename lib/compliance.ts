@@ -71,6 +71,10 @@ export function validateTaxRules(profile: FopProfile) {
   const group = profile.group || 3;
   const reportingPeriod = profile.reportingPeriod || "quarterly";
 
+  if (group !== 3) {
+    warnings.push("У Finbase підтримується лише ФОП 3 групи. Змініть групу в налаштуваннях.");
+  }
+
   if (!profile.incomeLimit || profile.incomeLimit <= 0) {
     warnings.push("Не задано річний ліміт доходу.");
   }
@@ -84,31 +88,11 @@ export function validateTaxRules(profile: FopProfile) {
     warnings.push("ЄСВ/міс не задано або некоректний.");
   }
 
-  if (group === 1 || group === 2) {
-    if (!profile.fixedMonthlyTax || profile.fixedMonthlyTax <= 0) {
-      warnings.push(`Для ${group} групи бажано задати фіксований податок/міс.`);
-    }
-    if (profile.taxRate && profile.taxRate > 0) {
-      warnings.push(`Для ${group} групи ставка (%) зазвичай не використовується як основна.`);
-    }
-    if (reportingPeriod !== "monthly" && reportingPeriod !== "yearly") {
-      warnings.push(`Для ${group} групи рекомендовано період звітності: monthly або yearly.`);
-    }
+  if (!profile.taxRate || profile.taxRate <= 0) {
+    warnings.push("Для 3 групи задайте ставку податку (%).");
   }
-
-  if (group === 3) {
-    if (!profile.taxRate || profile.taxRate <= 0) {
-      warnings.push("Для 3 групи задайте ставку податку (%).");
-    }
-    if (reportingPeriod !== "quarterly" && reportingPeriod !== "monthly") {
-      warnings.push("Для 3 групи рекомендовано період звітності quarterly (або monthly, якщо так ведете облік).");
-    }
-  }
-
-  if (group === 4) {
-    if ((!profile.taxRate || profile.taxRate <= 0) && (!profile.fixedMonthlyTax || profile.fixedMonthlyTax <= 0)) {
-      warnings.push("Для 4 групи задайте хоча б один параметр податку: ставка (%) або фіксований податок/міс.");
-    }
+  if (reportingPeriod !== "quarterly" && reportingPeriod !== "monthly") {
+    warnings.push("Для 3 групи рекомендовано період звітності quarterly (або monthly, якщо так ведете облік).");
   }
 
   return warnings;

@@ -1,5 +1,5 @@
-const CACHE_NAME = "finbase-shell-v1";
-const SHELL = ["/", "/login", "/dashboard", "/manifest.webmanifest"];
+const CACHE_NAME = "finbase-shell-v2";
+const SHELL = ["/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -20,6 +20,22 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => response)
+        .catch(() => caches.match("/dashboard"))
+    );
+    return;
+  }
+
+  const isStaticAsset =
+    requestUrl.pathname.startsWith("/_next/static/") ||
+    requestUrl.pathname.startsWith("/_next/image") ||
+    /\.(?:js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/i.test(requestUrl.pathname);
+
+  if (!isStaticAsset) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

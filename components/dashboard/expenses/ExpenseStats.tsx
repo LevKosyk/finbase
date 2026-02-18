@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ArrowDownRight, Calendar, TrendingDown } from "lucide-react";
 
 interface StatsProps {
@@ -11,7 +12,7 @@ interface StatsProps {
   };
 }
 
-export default function ExpenseStats({ stats }: StatsProps) {
+function ExpenseStats({ stats }: StatsProps) {
   const changeIsUp = stats.change >= 0;
 
   return (
@@ -48,3 +49,5 @@ export default function ExpenseStats({ stats }: StatsProps) {
     </div>
   );
 }
+
+export default memo(ExpenseStats);

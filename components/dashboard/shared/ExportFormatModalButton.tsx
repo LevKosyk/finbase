@@ -5,7 +5,7 @@ import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { trackEvent } from "@/lib/analytics-client";
 
-type ExportType = "incomes" | "expenses" | "profile";
+type ExportType = "incomes" | "expenses" | "profile" | "statistics";
 type ExportFormat = "csv" | "xlsx" | "pdf" | "json";
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
   label?: string;
   defaultFormat?: ExportFormat;
   formats?: ExportFormat[];
+  extraParams?: Record<string, string | undefined>;
 }
 
 const ALL_FORMATS: ExportFormat[] = ["csv", "xlsx", "pdf", "json"];
@@ -22,6 +23,7 @@ export default function ExportFormatModalButton({
   label = "Експорт",
   defaultFormat = "csv",
   formats = ALL_FORMATS,
+  extraParams,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>(defaultFormat);
@@ -30,7 +32,14 @@ export default function ExportFormatModalButton({
 
   const submitExport = () => {
     trackEvent("export_submitted", { export_type: type, export_format: format });
-    window.location.href = `/api/export?type=${type}&format=${format}`;
+    const params = new URLSearchParams({ type, format });
+    if (extraParams) {
+      Object.entries(extraParams).forEach(([key, value]) => {
+        if (!value) return;
+        params.set(key, value);
+      });
+    }
+    window.location.href = `/api/export?${params.toString()}`;
     setOpen(false);
   };
 
@@ -38,12 +47,13 @@ export default function ExportFormatModalButton({
     <>
       <Button
         variant="secondary"
+        size="md"
         leftIcon={<Download className="w-5 h-5" />}
         onClick={() => {
           setOpen(true);
           trackEvent("export_modal_opened", { export_type: type });
         }}
-        className="min-w-[132px]"
+        className="min-w-[148px]"
       >
         {label}
       </Button>

@@ -5,6 +5,7 @@ import DataState from "@/components/ui/DataState";
 import { isDynamicServerUsageError } from "@/lib/is-dynamic-server-error";
 import StatisticsLiveSection from "@/components/dashboard/statistics/StatisticsLiveSection";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import PageShell from "@/components/dashboard/shared/PageShell";
 
 export default async function StatisticsPage({
   searchParams,
@@ -58,19 +59,11 @@ export default async function StatisticsPage({
   }
 
   return (
-    <div className="pb-12 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-2">Глибока Аналітика</h1>
-           <p className="text-gray-500 dark:text-gray-400 text-lg">Детальний розріз доходів та вітрат</p>
-        </div>
-      </div>
-
-      <StatisticsFilters />
-
-      <StatisticsLiveSection initialStats={stats} period={period} from={from} to={to} />
-
-    </div>
+    <PageShell title="Статистика" description="Детальний розріз доходів, витрат, лімітів і податкових показників.">
+      <section className="space-y-4">
+        <StatisticsFilters />
+        <StatisticsLiveSection initialStats={stats} period={period} from={from} to={to} />
+      </section>
+    </PageShell>
   );
 }

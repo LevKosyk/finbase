@@ -9,97 +9,52 @@ import { Loader2, Save, MapPin, Briefcase } from "lucide-react";
 import MotionWrapper from "@/components/MotionWrapper";
 import ProfileExport from "@/components/dashboard/settings/ProfileExport";
 import { useToast } from "@/components/providers/ToastProvider";
-
-interface FopFormData {
-    legalName: string;
-    ipn: string;
-    group: number | string;
-    address: string;
-    city: string;
-    street: string;
-    houseNumber: string;
-    zipCode: string;
-    kveds: string;
-    taxRatePercent: string;
-    fixedMonthlyTax: string;
-    esvMonthly: string;
-    incomeLimit: string;
-    reportingPeriod: string;
-    taxPaymentDay: string;
-    reportDay: string;
-    iban: string;
-    phone: string;
-    email: string;
-    registrationDate: string;
-    taxOffice: string;
-    expenseCategories: string;
-}
+import { useDashboardStore } from "@/lib/store/dashboard-store";
 
 export default function BusinessSettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
-    
-    const [fopData, setFopData] = useState<FopFormData>({
-        legalName: "",
-        ipn: "",
-        group: 3,
-        address: "", 
-        city: "",
-        street: "",
-        houseNumber: "",
-        zipCode: "",
-        kveds: "",
-        taxRatePercent: "",
-        fixedMonthlyTax: "",
-        esvMonthly: "",
-        incomeLimit: "",
-        reportingPeriod: "quarterly",
-        taxPaymentDay: "",
-        reportDay: "",
-        iban: "",
-        phone: "",
-        email: "",
-        registrationDate: "",
-        taxOffice: "",
-        expenseCategories: ""
-    });
+    const fopData = useDashboardStore((state) => state.businessSettingsDraft);
+    const setFopData = useDashboardStore((state) => state.setBusinessSettingsDraft);
 
     useEffect(() => {
         async function loadData() {
             const user = await getUser();
             if (user && user.settings) {
-                setFopData({
-                    legalName: user.settings.legalName || "",
-                    ipn: user.settings.ipn || "",
-                    group: user.settings.group ?? 3,
-                    address: user.settings.address || "",
-                    city: user.settings.city || "",
-                    street: user.settings.street || "",
-                    houseNumber: user.settings.houseNumber || "",
-                    zipCode: user.settings.zipCode || "",
-                    kveds: user.settings.kveds || "",
-                    taxRatePercent: typeof user.settings.taxRate === "number" ? (user.settings.taxRate * 100).toString() : "",
-                    fixedMonthlyTax: user.settings.fixedMonthlyTax?.toString() || "",
-                    esvMonthly: user.settings.esvMonthly?.toString() || "",
-                    incomeLimit: user.settings.incomeLimit?.toString() || "",
-                    reportingPeriod: user.settings.reportingPeriod || "quarterly",
-                    taxPaymentDay: user.settings.taxPaymentDay?.toString() || "",
-                    reportDay: user.settings.reportDay?.toString() || "",
-                    iban: user.settings.iban || "",
-                    phone: user.settings.phone || "",
-                    email: user.settings.email || "",
-                    registrationDate: user.settings.registrationDate
-                      ? new Date(user.settings.registrationDate).toISOString().slice(0, 10)
-                      : "",
-                    taxOffice: user.settings.taxOffice || "",
-                    expenseCategories: user.settings.expenseCategories || ""
-                });
+                if (fopData.userId !== user.id) {
+                    setFopData({
+                        userId: user.id,
+                        legalName: user.settings.legalName || "",
+                        ipn: user.settings.ipn || "",
+                        address: user.settings.address || "",
+                        city: user.settings.city || "",
+                        street: user.settings.street || "",
+                        houseNumber: user.settings.houseNumber || "",
+                        zipCode: user.settings.zipCode || "",
+                        kveds: user.settings.kveds || "",
+                        taxRatePercent: typeof user.settings.taxRate === "number" ? (user.settings.taxRate * 100).toString() : "",
+                        fixedMonthlyTax: user.settings.fixedMonthlyTax?.toString() || "",
+                        esvMonthly: user.settings.esvMonthly?.toString() || "",
+                        incomeLimit: user.settings.incomeLimit?.toString() || "",
+                        reportingPeriod: user.settings.reportingPeriod || "quarterly",
+                        taxPaymentDay: user.settings.taxPaymentDay?.toString() || "",
+                        reportDay: user.settings.reportDay?.toString() || "",
+                        iban: user.settings.iban || "",
+                        phone: user.settings.phone || "",
+                        email: user.settings.email || "",
+                        registrationDate: user.settings.registrationDate
+                          ? new Date(user.settings.registrationDate).toISOString().slice(0, 10)
+                          : "",
+                        taxOffice: user.settings.taxOffice || "",
+                        expenseCategories: user.settings.expenseCategories || ""
+                    });
+                }
             }
             setLoading(false);
         }
         loadData();
-    }, []);
+    }, [fopData.userId, setFopData]);
 
     const handleFOPSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,7 +63,7 @@ export default function BusinessSettingsPage() {
         const res = await updateFOPSettings({
             legalName: fopData.legalName,
             ipn: fopData.ipn,
-            group: Number(fopData.group),
+            group: 3,
             address: fullAddress,
             city: fopData.city,
             street: fopData.street,
@@ -179,16 +134,12 @@ export default function BusinessSettingsPage() {
                             />
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Група оподаткування</label>
-                                <select 
-                                    value={fopData.group || 3}
-                                    onChange={(e) => setFopData({...fopData, group: e.target.value})}
-                                    className="w-full px-5 py-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 focus:bg-white dark:focus:bg-gray-800 focus:ring-4 focus:ring-blue-500/10 focus:border-[var(--fin-primary)] outline-none transition-all cursor-pointer"
-                                >
-                                    <option value="1">1 група</option>
-                                    <option value="2">2 група</option>
-                                    <option value="3">3 група</option>
-                                    <option value="4">4 група</option>
-                                </select>
+                                <input
+                                  value="3 група"
+                                  disabled
+                                  className="w-full px-5 py-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-gray-900 dark:bg-blue-900/20 dark:border-blue-700 dark:text-gray-100 outline-none"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Платформа працює тільки з ФОП 3 групи.</p>
                             </div>
                         </div>
                         </div>

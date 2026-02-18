@@ -1,21 +1,13 @@
 "use client";
 
 import useSWR from "swr";
-import dynamic from "next/dynamic";
 import DataState from "@/components/ui/DataState";
 import type { StatisticsData } from "@/lib/types/statistics";
-
-const KPIGrid = dynamic(() => import("@/components/dashboard/statistics/KPIGrid"));
-const IncomeChart = dynamic(() => import("@/components/dashboard/statistics/IncomeChart"), {
-  loading: () => <div className="h-[360px] rounded-[2rem] border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 animate-pulse" />,
-});
-const ExpenseStructure = dynamic(() => import("@/components/dashboard/statistics/ExpenseStructure"), {
-  loading: () => <div className="h-[300px] rounded-[2rem] border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 animate-pulse" />,
-});
-const FOPLimitWidget = dynamic(() => import("@/components/dashboard/statistics/FOPLimitWidget"));
-const AIInsightsMock = dynamic(() => import("@/components/dashboard/statistics/AIInsightsMock"), {
-  loading: () => <div className="h-[300px] rounded-[2rem] border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 animate-pulse" />,
-});
+import KPIGrid from "@/components/dashboard/statistics/KPIGrid";
+import IncomeChart from "@/components/dashboard/statistics/IncomeChart";
+import ExpenseStructure from "@/components/dashboard/statistics/ExpenseStructure";
+import FOPLimitWidget from "@/components/dashboard/statistics/FOPLimitWidget";
+import StatisticsHighlights from "@/components/dashboard/statistics/StatisticsHighlights";
 
 const fetcher = async (url: string): Promise<{ stats: StatisticsData | null }> => {
   const response = await fetch(url, { credentials: "include" });
@@ -71,28 +63,26 @@ export default function StatisticsLiveSection({
   }
 
   return (
-    <>
+    <section className="space-y-6">
       <KPIGrid stats={stats} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2">
           <IncomeChart data={stats.charts.incomeDynamics} />
         </div>
-        <div className="flex flex-col gap-6">
-          <div className="flex-1">
-            <AIInsightsMock insights={stats.insights} />
-          </div>
+        <div>
+          <StatisticsHighlights stats={stats} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <ExpenseStructure data={stats.charts.expenseStructure} />
-        </div>
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2">
           <FOPLimitWidget stats={stats.fop.limit} />
         </div>
+        <div>
+          <ExpenseStructure data={stats.charts.expenseStructure} />
+        </div>
       </div>
-    </>
+    </section>
   );
 }

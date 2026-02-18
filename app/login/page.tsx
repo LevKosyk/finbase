@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/providers/ToastProvider";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const toast = useToast();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = (formData: FormData) => {
     startTransition(async () => {
@@ -63,9 +66,19 @@ export default function LoginPage() {
                 </div>
                 <Input
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     placeholder="••••••••"
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? "Сховати пароль" : "Показати пароль"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
                 />
             </div>
             

@@ -37,7 +37,11 @@ export default function ExpenseStructure({ data }: ExpenseStructureProps) {
                                     <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
                                 ))}
                             </Pie>
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -5px rgba(0,0,0,0.1)' }} />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -5px rgba(0,0,0,0.1)' }}
+                                formatter={(value: number | undefined) => [`${Number(value || 0).toLocaleString("uk-UA")} ₴`, "Сума"]}
+                                labelFormatter={(label) => `Категорія: ${label}`}
+                            />
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-[-5px]">

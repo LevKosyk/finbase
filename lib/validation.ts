@@ -31,8 +31,11 @@ export const expenseImportRowSchema = z.object({
 });
 
 export const exportQuerySchema = z.object({
-  type: z.enum(["incomes", "expenses", "profile"]).default("incomes"),
+  type: z.enum(["incomes", "expenses", "profile", "statistics"]).default("incomes"),
   format: z.enum(["csv", "xlsx", "json", "pdf"]).default("csv"),
+  period: z.enum(["month", "quarter", "year", "custom"]).optional(),
+  from: z.string().trim().max(32).optional(),
+  to: z.string().trim().max(32).optional(),
 });
 
 export const documentRequestSchema = z.object({
@@ -53,6 +56,7 @@ export const documentRequestSchema = z.object({
 
 export const aiRouteRequestSchema = z.object({
   currentPath: z.string().trim().max(120).optional(),
+  sessionId: z.string().trim().uuid().optional(),
   messages: z.array(
     z.object({
       role: z.enum(["system", "user", "assistant"]),

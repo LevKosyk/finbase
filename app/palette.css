@@ -9,3 +9,15 @@
   --fin-error: #EF4444;
   --fin-info: #3B82F6;
 }
+
+.dark {
+  --fin-primary: #3B82F6;
+  --fin-secondary: #60A5FA;
+  --fin-background: #030712;
+  --fin-card: #111827;
+  --fin-text-main: #F9FAFB;
+  --fin-text-secondary: #9CA3AF;
+  --fin-success: #10B981;
+  --fin-error: #EF4444;
+  --fin-info: #60A5FA;
+}

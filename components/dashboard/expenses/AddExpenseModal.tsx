@@ -8,6 +8,7 @@ import { emitDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
 import { useToast } from "@/components/providers/ToastProvider";
 import { enqueueOffline } from "@/lib/offline-queue";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 export default function AddExpenseModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -67,7 +68,7 @@ export default function AddExpenseModal() {
         setCategory(categories[0] || "Інше");
         setDescription("");
         toast.success({ title: "Витрату додано" });
-        void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+        queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
       } else {
         emitDashboardEvent("expense:create:rollback", { tempId });
         try {
@@ -84,7 +85,7 @@ export default function AddExpenseModal() {
             setCategory(categories[0] || "Інше");
             setDescription("");
             toast.success({ title: "Витрату додано" });
-            void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+            queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
           } else {
             toast.error({ title: "Помилка при створенні витрати", description: result.error || "Спробуйте ще раз." });
           }
@@ -107,7 +108,8 @@ export default function AddExpenseModal() {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all"
+        size="md"
+        className="min-w-[148px]"
         leftIcon={<Plus className="w-5 h-5" />}
       >
         Додати витрату

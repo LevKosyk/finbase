@@ -9,6 +9,7 @@ import type { IncomeImportRow } from "@/lib/types/income";
 import { trackEvent } from "@/lib/analytics-client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 const headerMap: Record<string, keyof IncomeImportRow> = {
   date: "date",
@@ -106,7 +107,7 @@ export default function IncomeImport() {
         if (res.success) {
           trackEvent("income_import_success", { imported_count: res.count || 0 });
           toast.success({ title: "Імпорт завершено", description: `Імпортовано записів: ${res.count || 0}` });
-          void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
+          queueDashboardRevalidateByPriority(mutate, { immediate: ["income"], deferred: ["statistics"] });
         } else {
           trackEvent("income_import_failed", { reason: res.error || "import_failed" });
           toast.error({ title: "Помилка імпорту", description: res.error || "Спробуйте ще раз." });
@@ -135,7 +136,8 @@ export default function IncomeImport() {
       />
       <Button
         variant="secondary"
-        className="min-w-[132px]"
+        size="md"
+        className="min-w-[148px]"
         leftIcon={<UploadCloud className="w-5 h-5" />}
         onClick={() => inputRef.current?.click()}
         isLoading={isLoading}

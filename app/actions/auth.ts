@@ -10,7 +10,7 @@ import { sendVerificationCode } from "@/app/actions/email";
 import { cacheKey, getCacheJson, hashToken, setCacheJson, invalidateUserCache } from "@/lib/redis-cache";
 import { Prisma } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log";
-import { createLoginTwoFactorChallenge, isTrustedDeviceForUser } from "@/app/actions/two-factor";
+import { createEmailLoginTwoFactorChallenge, createLoginTwoFactorChallenge, isTrustedDeviceForUser } from "@/app/actions/two-factor";
 import { buildDeviceFingerprint } from "@/lib/device-fingerprint";
 import {
   AUTH_TIME_COOKIE,
@@ -101,6 +101,12 @@ export async function login(formData: FormData) {
       await createLoginTwoFactorChallenge(syncResult.user.id);
       return { requires2fa: true };
     }
+  } else {
+    const emailChallenge = await createEmailLoginTwoFactorChallenge(syncResult.user.id, emailKey || syncResult.user.email || email);
+    if (!emailChallenge.success) {
+      return { error: "Не вдалося надіслати код підтвердження на email." };
+    }
+    return { requires2fa: true };
   }
 
   const cookieStore = await cookies();
@@ -140,8 +146,12 @@ export async function login(formData: FormData) {
 export async function signup(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string | null;
   const firstName = formData.get("firstName") as string;
   const lastName = formData.get("lastName") as string;
+  if (confirmPassword !== null && password !== confirmPassword) {
+    return { error: "Passwords do not match" };
+  }
   
   const headersList = await headers();
   const origin = getSafeOrigin(headersList.get("origin"));

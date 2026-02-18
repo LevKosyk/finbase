@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Trash2, Edit2 } from "lucide-react";
 import { deleteIncome, restoreIncome } from "@/app/actions/income";
 import EditIncomeModal from "@/components/dashboard/income/EditIncomeModal";
@@ -8,12 +8,13 @@ import DataState from "@/components/ui/DataState";
 import { useToast } from "@/components/providers/ToastProvider";
 import { subscribeDashboardEvent, type IncomeRow } from "@/lib/dashboard-events";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 function sortIncomes(rows: IncomeRow[]) {
   return [...rows].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export default function IncomeList({ initialIncomes }: { initialIncomes: IncomeRow[] }) {
+function IncomeList({ initialIncomes }: { initialIncomes: IncomeRow[] }) {
   const [rows, setRows] = useState<IncomeRow[]>(() => sortIncomes(initialIncomes || []));
   const [editingIncome, setEditingIncome] = useState<IncomeRow | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -68,13 +69,13 @@ export default function IncomeList({ initialIncomes }: { initialIncomes: IncomeR
           if (restored.success) {
             setRows((prev) => sortIncomes([target, ...prev]));
             toast.info({ title: "Дохід відновлено" });
-            void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
+            queueDashboardRevalidateByPriority(mutate, { immediate: ["income"], deferred: ["statistics"] });
           } else {
             toast.error({ title: "Не вдалося відновити дохід" });
           }
         },
       });
-      void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
+      queueDashboardRevalidateByPriority(mutate, { immediate: ["income"], deferred: ["statistics"] });
     } else {
       setRows((prev) => sortIncomes([target, ...prev]));
       toast.error({ title: "Не вдалося видалити дохід", description: result.error || "Спробуйте ще раз" });
@@ -150,10 +151,12 @@ export default function IncomeList({ initialIncomes }: { initialIncomes: IncomeR
         isOpen={!!editingIncome}
         onClose={() => {
           setEditingIncome(null);
-          void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/statistics")));
+          queueDashboardRevalidateByPriority(mutate, { immediate: ["income"], deferred: ["statistics"] });
         }}
         income={editingIncome}
       />
     </>
   );
 }
+
+export default memo(IncomeList);

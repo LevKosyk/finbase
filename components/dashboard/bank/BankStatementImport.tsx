@@ -9,6 +9,7 @@ import { importBankStatement, previewBankStatement } from "@/app/actions/bank";
 import type { BankStatementRow } from "@/lib/types/bank";
 import { trackEvent } from "@/lib/analytics-client";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 const headerMap: Record<string, keyof BankStatementRow> = {
   date: "date",
@@ -52,6 +53,7 @@ export default function BankStatementImport() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { mutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
+  const [queueJobId, setQueueJobId] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pendingRows, setPendingRows] = useState<BankStatementRow[]>([]);
   const [pendingFileName, setPendingFileName] = useState("");
@@ -106,32 +108,99 @@ export default function BankStatementImport() {
     if (pendingRows.length === 0 || !pendingFileName) return;
     setLoading(true);
     try {
-      const res = await importBankStatement(pendingRows, pendingFileName);
-      if (!res.success) {
-        trackEvent("bank_import_failed", { reason: res.error || "import_failed", file_name: pendingFileName });
-        setError(res.error || "Помилка імпорту");
+      const idemKey = crypto.randomUUID();
+      const queueRes = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "bank_import",
+          idempotencyKey: idemKey,
+          payload: {
+            rows: pendingRows,
+            fileName: pendingFileName,
+            idempotencyKey: idemKey,
+          },
+        }),
+      });
+
+      if (!queueRes.ok) {
+        const res = await importBankStatement(pendingRows, pendingFileName, idemKey);
+        if (!res.success) {
+          trackEvent("bank_import_failed", { reason: res.error || "import_failed", file_name: pendingFileName });
+          setError(res.error || "Помилка імпорту");
+          return;
+        }
+        trackEvent("bank_import_success", {
+          file_name: pendingFileName,
+          total_rows: res.totalRows ?? 0,
+          imported_income: res.importedIncome ?? 0,
+          imported_expense: res.importedExpense ?? 0,
+          duplicates: res.duplicates ?? 0,
+          skipped: res.skipped ?? 0,
+        });
+        setError("");
+        setReport({
+          totalRows: res.totalRows ?? 0,
+          importedIncome: res.importedIncome ?? 0,
+          importedExpense: res.importedExpense ?? 0,
+          duplicates: res.duplicates ?? 0,
+          skipped: res.skipped ?? 0,
+        });
+        setPendingRows([]);
+        setPendingFileName("");
+        setPreview(null);
+        queueDashboardRevalidateByPriority(mutate, { immediate: ["bank-imports", "income", "expenses"], deferred: ["statistics"] });
         return;
       }
-      trackEvent("bank_import_success", {
-        file_name: pendingFileName,
-        total_rows: res.totalRows ?? 0,
-        imported_income: res.importedIncome ?? 0,
-        imported_expense: res.importedExpense ?? 0,
-        duplicates: res.duplicates ?? 0,
-        skipped: res.skipped ?? 0,
-      });
-      setError("");
-      setReport({
-        totalRows: res.totalRows ?? 0,
-        importedIncome: res.importedIncome ?? 0,
-        importedExpense: res.importedExpense ?? 0,
-        duplicates: res.duplicates ?? 0,
-        skipped: res.skipped ?? 0,
-      });
-      setPendingRows([]);
-      setPendingFileName("");
-      setPreview(null);
-      void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/bank-imports") || key.startsWith("/api/dashboard/income") || key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+
+      const queueJson = await queueRes.json();
+      const jobId = String(queueJson?.jobId || "");
+      if (!jobId) {
+        setError("Не вдалося поставити імпорт у чергу");
+        return;
+      }
+      setQueueJobId(jobId);
+
+      const started = Date.now();
+      while (Date.now() - started < 5 * 60 * 1000) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const statusRes = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+        if (!statusRes.ok) continue;
+        const statusJson = await statusRes.json();
+        if (statusJson?.status === "completed") {
+          const result = statusJson?.result || {};
+          trackEvent("bank_import_success", {
+            file_name: pendingFileName,
+            total_rows: result.totalRows ?? pendingRows.length,
+            imported_income: result.importedIncome ?? 0,
+            imported_expense: result.importedExpense ?? 0,
+            duplicates: result.duplicates ?? 0,
+            skipped: result.skipped ?? 0,
+          });
+          setError("");
+          setReport({
+            totalRows: Number(result.totalRows || pendingRows.length),
+            importedIncome: Number(result.importedIncome || 0),
+            importedExpense: Number(result.importedExpense || 0),
+            duplicates: Number(result.duplicates || 0),
+            skipped: Number(result.skipped || 0),
+          });
+          setPendingRows([]);
+          setPendingFileName("");
+          setPreview(null);
+          setQueueJobId("");
+          queueDashboardRevalidateByPriority(mutate, { immediate: ["bank-imports", "income", "expenses"], deferred: ["statistics"] });
+          return;
+        }
+        if (statusJson?.status === "failed") {
+          trackEvent("bank_import_failed", { reason: statusJson?.error || "queue_failed", file_name: pendingFileName });
+          setError(statusJson?.error || "Імпорт у черзі завершився помилкою");
+          setQueueJobId("");
+          return;
+        }
+      }
+
+      setError("Імпорт ще обробляється у фоні. Перевірте статус пізніше.");
     } finally {
       setLoading(false);
     }
@@ -280,6 +349,12 @@ export default function BankStatementImport() {
           <Button isLoading={loading} onClick={handleImport}>
             Імпортувати після dry-run
           </Button>
+        </div>
+      )}
+
+      {queueJobId && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Імпорт обробляється у фоні. Job ID: <span className="font-mono">{queueJobId}</span>
         </div>
       )}
 

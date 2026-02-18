@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ArrowDownRight, ArrowUpRight, TrendingUp, Wallet, Receipt, PieChart } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -14,9 +15,9 @@ interface StatsData {
 
 type CardColor = "blue" | "orange" | "green" | "purple";
 
-export default function KPIGrid({ stats }: { stats: StatsData }) {
+function KPIGrid({ stats }: { stats: StatsData }) {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard 
                 title="Загальний дохід" 
                 amount={stats.kpi.income.total} 
@@ -97,3 +98,5 @@ function KPICard({
         </div>
     );
 }
+
+export default memo(KPIGrid);

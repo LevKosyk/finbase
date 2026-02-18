@@ -13,6 +13,7 @@ import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 import { checkAndStoreIdempotency } from "@/lib/idempotency";
 import { enforceRateLimit } from "@/lib/security";
 import { headers } from "next/headers";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 export async function createIncome(data: IncomeData, idempotencyKey?: string) {
     return measureAction("action.createIncome", async () => {
@@ -22,6 +23,7 @@ export async function createIncome(data: IncomeData, idempotencyKey?: string) {
     if (!user) {
         throw new Error("Unauthorized");
     }
+    await enforceUserFopGroup3(user.id, "action.income.create");
     const ip = ((await headers()).get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
     const burst = await enforceRateLimit(`action:income:create:burst:${user.id}:${ip}`, 20, 60);
     if (!burst.allowed) {
@@ -78,6 +80,7 @@ export async function importIncomes(rows: IncomeImportRow[], idempotencyKey?: st
     if (!user) {
         throw new Error("Unauthorized");
     }
+    await enforceUserFopGroup3(user.id, "action.income.import");
     if (rows.length > 5000) {
       return { success: false, error: "Too many rows. Limit is 5000." };
     }
@@ -138,6 +141,7 @@ export async function updateIncome(id: string, data: Partial<IncomeData>) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Unauthorized");
+    await enforceUserFopGroup3(user.id, "action.income.update");
 
     try {
         const parsed = incomeDataSchema.partial().safeParse(data);
@@ -175,6 +179,7 @@ export async function deleteIncome(id: string) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Unauthorized");
+    await enforceUserFopGroup3(user.id, "action.income.delete");
 
     try {
         await prisma.income.update({
@@ -205,6 +210,7 @@ export async function restoreIncome(id: string) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Unauthorized");
+    await enforceUserFopGroup3(user.id, "action.income.restore");
 
     try {
         await prisma.income.update({
@@ -245,6 +251,7 @@ export async function getIncomes(searchParams?: {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return [];
+  await enforceUserFopGroup3(user.id, "action.income.list");
 
   try {
     const filters: Prisma.IncomeWhereInput = {
@@ -312,6 +319,7 @@ export async function getIncomeStats() {
     const { data: { user } } = await supabase.auth.getUser();
   
     if (!user) return { total: 0, change: 0, average: 0, pending: 0, chartData: [] };
+    await enforceUserFopGroup3(user.id, "action.income.stats");
 
     const redisKey = cacheKey("user", user.id, "income-stats");
     return withRedisCache(redisKey, 120, async () => await unstable_cache(

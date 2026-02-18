@@ -6,6 +6,7 @@ import { useToast } from "@/components/providers/ToastProvider";
 import { RotateCcw } from "lucide-react";
 import { emitDashboardEvent } from "@/lib/dashboard-events";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 type DeletedExpense = {
   id: string;
@@ -53,7 +54,7 @@ export default function ExpenseTrash({ items }: { items: DeletedExpense[] }) {
                     },
                   });
                   toast.success({ title: "Витрату відновлено з кошика" });
-                  void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+                  queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
                 } else {
                   toast.error({ title: "Не вдалося відновити витрату" });
                 }

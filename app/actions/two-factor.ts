@@ -15,9 +15,19 @@ import {
   TWO_FACTOR_CHALLENGE_COOKIE,
   TWO_FACTOR_SESSION_COOKIE,
 } from "@/lib/auth-cookies";
+import { sendVerificationCode } from "@/app/actions/email";
 
 const TWO_FACTOR_SESSION_TTL_SECONDS = 60 * 60 * 12;
 const TRUSTED_DEVICE_TTL_SECONDS = 60 * 60 * 24 * 30;
+const LOGIN_2FA_CHALLENGE_TTL_SECONDS = 60 * 10;
+
+type LoginChallengePayload = {
+  userId: string;
+  method: "totp" | "email";
+  codeHash?: string;
+  email?: string;
+  createdAt: number;
+};
 
 function getDeviceFingerprint(userAgent: string, ip: string | null, lang: string | null) {
   return createHash("sha256")
@@ -147,16 +157,77 @@ export async function disableTwoFactor(code: string) {
 export async function createLoginTwoFactorChallenge(userId: string) {
   const challenge = randomBytes(24).toString("hex");
   const key = cacheKey("2fa", "challenge", challenge);
-  await setCacheJson(key, { userId }, 60 * 10);
+  await setCacheJson<LoginChallengePayload>(
+    key,
+    { userId, method: "totp", createdAt: Date.now() },
+    LOGIN_2FA_CHALLENGE_TTL_SECONDS
+  );
   const cookieStore = await cookies();
   cookieStore.set(TWO_FACTOR_CHALLENGE_COOKIE, challenge, {
     httpOnly: true,
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 10,
+    maxAge: LOGIN_2FA_CHALLENGE_TTL_SECONDS,
   });
   cookieStore.delete(TWO_FACTOR_SESSION_COOKIE);
+}
+
+export async function createEmailLoginTwoFactorChallenge(userId: string, email: string) {
+  const challenge = randomBytes(24).toString("hex");
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = createHash("sha256").update(code).digest("hex");
+
+  await setCacheJson<LoginChallengePayload>(
+    cacheKey("2fa", "challenge", challenge),
+    { userId, method: "email", codeHash, email, createdAt: Date.now() },
+    LOGIN_2FA_CHALLENGE_TTL_SECONDS
+  );
+
+  const cookieStore = await cookies();
+  cookieStore.set(TWO_FACTOR_CHALLENGE_COOKIE, challenge, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: LOGIN_2FA_CHALLENGE_TTL_SECONDS,
+  });
+  cookieStore.delete(TWO_FACTOR_SESSION_COOKIE);
+
+  const result = await sendVerificationCode(email, code);
+  if (result?.error) {
+    return { success: false, error: result.error };
+  }
+  return { success: true };
+}
+
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email;
+  if (name.length <= 2) return `${name[0] || "*"}*@${domain}`;
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
+export async function getLoginTwoFactorMethod() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { method: null as "totp" | "email" | null };
+
+  const cookieStore = await cookies();
+  const challenge = cookieStore.get(TWO_FACTOR_CHALLENGE_COOKIE)?.value;
+  if (!challenge) return { method: null as "totp" | "email" | null };
+
+  const challengeData = await getCacheJson<LoginChallengePayload>(cacheKey("2fa", "challenge", challenge));
+  if (!challengeData || challengeData.userId !== user.id) {
+    return { method: null as "totp" | "email" | null };
+  }
+
+  return {
+    method: challengeData.method,
+    emailMasked: challengeData.email ? maskEmail(challengeData.email) : undefined,
+  };
 }
 
 export async function completeLoginTwoFactor(code: string, trustDevice = false) {
@@ -168,19 +239,26 @@ export async function completeLoginTwoFactor(code: string, trustDevice = false) 
   const challenge = cookieStore.get(TWO_FACTOR_CHALLENGE_COOKIE)?.value;
   if (!challenge) return { success: false, error: "2FA challenge expired." };
 
-  const challengeData = await getCacheJson<{ userId: string }>(cacheKey("2fa", "challenge", challenge));
+  const challengeData = await getCacheJson<LoginChallengePayload>(cacheKey("2fa", "challenge", challenge));
   if (!challengeData || challengeData.userId !== user.id) {
     return { success: false, error: "Invalid 2FA challenge." };
   }
 
-  const row = await prisma.twoFactorAuth.findUnique({ where: { userId: user.id } });
-  if (!row?.enabled || !row.secretEnc) {
-    return { success: false, error: "2FA is not enabled." };
+  if (challengeData.method === "totp") {
+    const row = await prisma.twoFactorAuth.findUnique({ where: { userId: user.id } });
+    if (!row?.enabled || !row.secretEnc) {
+      return { success: false, error: "2FA is not enabled." };
+    }
+    const secret = decryptText(row.secretEnc);
+    const valid = verify({ token: code, secret });
+    if (!valid) return { success: false, error: "Invalid verification code." };
+  } else {
+    const codeHash = createHash("sha256").update(code.trim()).digest("hex");
+    if (!challengeData.codeHash || challengeData.codeHash !== codeHash) {
+      return { success: false, error: "Invalid email verification code." };
+    }
+    trustDevice = false;
   }
-
-  const secret = decryptText(row.secretEnc);
-  const valid = verify({ token: code, secret });
-  if (!valid) return { success: false, error: "Invalid verification code." };
 
   cookieStore.set(TWO_FACTOR_SESSION_COOKIE, "1", {
     httpOnly: true,
@@ -217,7 +295,7 @@ export async function completeLoginTwoFactor(code: string, trustDevice = false) 
 
   await logAuditEvent({
     userId: user.id,
-    action: "security.2fa.login_verified",
+    action: challengeData.method === "totp" ? "security.2fa.login_verified" : "security.email_2fa.login_verified",
     entityType: "two_factor",
   });
   return { success: true };

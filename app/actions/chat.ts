@@ -1,8 +1,8 @@
 "use server";
 
-import OpenAI from "openai";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 type ChatRole = "system" | "user" | "assistant";
 
@@ -11,9 +11,14 @@ type ChatMessage = {
   content: string;
 };
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.2-3b-instruct";
+const OPENROUTER_MAX_TOKENS = Math.max(64, Math.min(2048, Number(process.env.OPENROUTER_MAX_TOKENS || 400)));
+const OPENROUTER_TEMPERATURE = Math.max(0, Math.min(1, Number(process.env.OPENROUTER_TEMPERATURE || 0.15)));
+const OFFTOPIC_RESPONSE =
+  "Я допомагаю лише з Finbase (доходи, витрати, виписки, документи, податки ФОП 3 групи, статистика, налаштування).";
+const DOMAIN_KEYWORDS = [
+  "finbase","фоп","подат","єсв","дпс","документ","декларац","інвойс","рахунок","акт","дохід","витрат","виписк","банк","категор","правил","ліміт","статист","dashboard","income","expenses","documents","calendar","settings",
+];
 
 const INTERFACE_HELP: Record<string, string> = {
   "/dashboard": "Користувач на головному дашборді. Допомагай читати KPI, ризик-скор, ліміти та підказуй next step.",
@@ -49,6 +54,13 @@ function formatUAH(value: number) {
   return value.toLocaleString("uk-UA");
 }
 
+function isInDomainQuestion(text: string, currentPath?: string) {
+  const value = (text || "").toLowerCase().trim();
+  if (!value) return false;
+  if (currentPath?.startsWith("/dashboard")) return true;
+  return DOMAIN_KEYWORDS.some((keyword) => value.includes(keyword));
+}
+
 export async function getAIResponse(messages: ChatMessage[], currentPath?: string) {
   const supabase = await createClient();
   const {
@@ -59,10 +71,18 @@ export async function getAIResponse(messages: ChatMessage[], currentPath?: strin
   if (safeMessages.length === 0) {
     return { error: "Empty message history" };
   }
+  const lastUserMessage = [...safeMessages].reverse().find((m) => m.role === "user");
+  if (!lastUserMessage) return { error: "Empty user message" };
+  if (!isInDomainQuestion(lastUserMessage.content, currentPath)) {
+    return { role: "assistant" as const, content: OFFTOPIC_RESPONSE };
+  }
 
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (user) {
+    await enforceUserFopGroup3(user.id, "action.chat.ai_response");
+  }
 
   const dbUser = user
     ? await prisma.user.findUnique({
@@ -138,11 +158,12 @@ export async function getAIResponse(messages: ChatMessage[], currentPath?: strin
 - Якщо даних недостатньо, чітко скажи що саме треба додати.
 - Не вигадуй закони і не давай категоричних юридичних гарантій.
 - Якщо питання про податки, рахуй лише за поточними налаштуваннями користувача.
+- Якщо питання не про Finbase/ФОП у цьому застосунку — коротко відмов.
 
 КОНТЕКСТ КОРИСТУВАЧА:
 - User: ${dbUser?.name || "Guest"}
 - План: ${dbUser?.subscription?.plan || "Guest"}
-- Група ФОП: ${dbUser?.settings?.group || "не задано"}
+- Група ФОП: 3
 - Налаштована ставка податку: ${taxRate > 0 ? `${(taxRate * 100).toFixed(2)}%` : "не задано"}
 - Фіксований податок/міс: ${formatUAH(fixedMonthlyTax)} грн
 - ЄСВ/міс: ${formatUAH(esvMonthly)} грн
@@ -160,18 +181,40 @@ export async function getAIResponse(messages: ChatMessage[], currentPath?: strin
 `;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.35,
-      messages: [{ role: "system", content: systemContext }, ...safeMessages],
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterKey) {
+      return { error: "OPENROUTER_API_KEY is missing." };
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openrouterKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        "X-Title": process.env.NEXT_PUBLIC_APP_NAME || "Finbase",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        temperature: OPENROUTER_TEMPERATURE,
+        max_tokens: OPENROUTER_MAX_TOKENS,
+        messages: [{ role: "system", content: systemContext }, ...safeMessages],
+      }),
     });
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.error("OpenRouter Error:", response.status, details);
+      return { error: "Failed to get AI response from OpenRouter." };
+    }
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
 
     return {
       role: "assistant" as const,
-      content: response.choices[0].message.content || "Не вдалося сформувати відповідь.",
+      content: content || "Не вдалося сформувати відповідь.",
     };
   } catch (error) {
-    console.error("OpenAI Error:", error);
-    return { error: "Failed to get AI response. Check API Key." };
+    console.error("OpenRouter request error:", error);
+    return { error: "Failed to get AI response from OpenRouter." };
   }
 }

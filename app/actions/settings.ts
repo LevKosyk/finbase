@@ -39,14 +39,26 @@ export async function updateFOPSettings(data: {
   }
 
   try {
+    const normalizedGroup = 3;
+    const normalizedReportingPeriod =
+      data.reportingPeriod === "monthly" || data.reportingPeriod === "quarterly"
+        ? data.reportingPeriod
+        : data.reportingPeriod
+          ? "quarterly"
+          : undefined;
+
     await prisma.fOPSettings.upsert({
       where: { userId: user.id },
       update: {
         ...data,
+        group: normalizedGroup,
+        ...(data.reportingPeriod !== undefined ? { reportingPeriod: normalizedReportingPeriod } : {}),
       },
       create: {
         userId: user.id,
         ...data,
+        group: normalizedGroup,
+        ...(data.reportingPeriod !== undefined ? { reportingPeriod: normalizedReportingPeriod } : {}),
       },
     });
     await invalidateUserCache(user.id);
@@ -118,6 +130,10 @@ export async function updateProfile(data: {
     }
 
     try {
+        const safeAvatarUrl =
+          data.avatarUrl && !data.avatarUrl.startsWith("data:") && data.avatarUrl.length < 2000
+            ? data.avatarUrl
+            : undefined;
         if (data.email && data.email !== user.email) {
             const access = await ensureSensitiveActionAccess({
               action: "settings.profile.change_email",
@@ -139,7 +155,7 @@ export async function updateProfile(data: {
                 name: data.name,
                 firstName: data.firstName,
                 lastName: data.lastName,
-                avatarUrl: data.avatarUrl,
+                avatarUrl: safeAvatarUrl,
                 ...(data.email ? { email: data.email } : {}),
             }
         });

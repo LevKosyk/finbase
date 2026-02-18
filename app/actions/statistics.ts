@@ -3,10 +3,12 @@
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import type { StatisticsData } from "@/lib/types/statistics";
+import { Prisma } from "@prisma/client";
 
 import { unstable_cache } from "next/cache";
 import { cacheKey, withRedisCache } from "@/lib/redis-cache";
 import { measureAction } from "@/lib/performance";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 export async function getStatistics(
     period: 'month' | 'quarter' | 'year' | 'custom' = 'year',
@@ -18,6 +20,7 @@ export async function getStatistics(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return null;
+    await enforceUserFopGroup3(user.id, "action.statistics.get");
 
     const redisKey = cacheKey("user", user.id, "statistics", period, from || "na", to || "na");
     return withRedisCache(redisKey, 120, async () => await unstable_cache(
@@ -89,44 +92,64 @@ export async function getStatistics(
                 const dateFilter = { gte: startDate, lte: endDate };
                 const previousDateFilter = { gte: previousStartDate, lte: previousEndDate };
 
-                // Fetch Data
-                const incomes = await prisma.income.findMany({
-                    where: { 
-                        userId: user.id,
-                        deletedAt: null,
-                        date: dateFilter
-                    },
-                    orderBy: { date: 'asc' },
-                    select: { amount: true, date: true, source: true }
-                });
-                
-                const expenses = await prisma.expense.findMany({
-                    where: {
-                        userId: user.id,
-                        deletedAt: null,
-                        date: dateFilter
-                    },
-                    select: { amount: true, category: true }
-                });
+                const [incomeAgg, expenseAgg, previousIncomeAgg, previousExpenseAgg, yearIncomeAgg, incomeStructureRows, expenseStructureRows, dynamicsRows] = await Promise.all([
+                    prisma.income.aggregate({
+                        where: { userId: user.id, deletedAt: null, date: dateFilter },
+                        _sum: { amount: true },
+                    }),
+                    prisma.expense.aggregate({
+                        where: { userId: user.id, deletedAt: null, date: dateFilter },
+                        _sum: { amount: true },
+                    }),
+                    prisma.income.aggregate({
+                        where: { userId: user.id, deletedAt: null, date: previousDateFilter },
+                        _sum: { amount: true },
+                    }),
+                    prisma.expense.aggregate({
+                        where: { userId: user.id, deletedAt: null, date: previousDateFilter },
+                        _sum: { amount: true },
+                    }),
+                    prisma.income.aggregate({
+                        where: {
+                            userId: user.id,
+                            deletedAt: null,
+                            date: { gte: new Date(new Date().getFullYear(), 0, 1) },
+                        },
+                        _sum: { amount: true },
+                    }),
+                    prisma.income.groupBy({
+                        by: ["source"],
+                        where: { userId: user.id, deletedAt: null, date: dateFilter },
+                        _sum: { amount: true },
+                        orderBy: { _sum: { amount: "desc" } },
+                    }),
+                    prisma.expense.groupBy({
+                        by: ["category"],
+                        where: { userId: user.id, deletedAt: null, date: dateFilter },
+                        _sum: { amount: true },
+                        orderBy: { _sum: { amount: "desc" } },
+                    }),
+                    prisma.$queryRaw<Array<{ bucket: Date; total: number }>>(Prisma.sql`
+                      SELECT date_trunc(${period === "month" ? "day" : "month"}, "date") AS bucket, COALESCE(SUM("amount"), 0)::float AS total
+                      FROM "Income"
+                      WHERE "userId" = ${user.id}
+                        AND "deletedAt" IS NULL
+                        AND "date" >= ${startDate}
+                        AND "date" <= ${endDate}
+                      GROUP BY 1
+                      ORDER BY 1 ASC
+                    `),
+                ]);
 
-                const previousIncomes = await prisma.income.findMany({
-                    where: { userId: user.id, deletedAt: null, date: previousDateFilter },
-                    select: { amount: true }
-                });
-                const previousExpenses = await prisma.expense.findMany({
-                    where: { userId: user.id, deletedAt: null, date: previousDateFilter },
-                    select: { amount: true }
-                });
-                
-                const totalIncome = incomes.reduce((sum: number, item) => sum + item.amount, 0);
-                const totalExpenses = expenses.reduce((sum: number, item) => sum + item.amount, 0);
+                const totalIncome = incomeAgg._sum.amount || 0;
+                const totalExpenses = expenseAgg._sum.amount || 0;
                 const netProfit = totalIncome - totalExpenses;
                 const singleTax = totalIncome * taxRate + fixedMonthlyTax * periodMonths;
                 const esv = esvMonthly * periodMonths;
                 const tax = singleTax + esv;
 
-                const prevIncomeTotal = previousIncomes.reduce((sum: number, item) => sum + item.amount, 0);
-                const prevExpensesTotal = previousExpenses.reduce((sum: number, item) => sum + item.amount, 0);
+                const prevIncomeTotal = previousIncomeAgg._sum.amount || 0;
+                const prevExpensesTotal = previousExpenseAgg._sum.amount || 0;
                 const prevNetProfit = prevIncomeTotal - prevExpensesTotal;
                 const prevSingleTax = prevIncomeTotal * taxRate + fixedMonthlyTax * periodMonths;
                 const prevEsv = esvMonthly * periodMonths;
@@ -137,35 +160,32 @@ export async function getStatistics(
                 const netProfitChange = prevNetProfit === 0 ? (netProfit > 0 ? 100 : 0) : ((netProfit - prevNetProfit) / prevNetProfit) * 100;
                 const taxChange = prevTax === 0 ? (tax > 0 ? 100 : 0) : ((tax - prevTax) / prevTax) * 100;
 
-                const yearlyIncomes = await prisma.income.findMany({
-                    where: {
-                        userId: user.id,
-                        deletedAt: null,
-                        date: { gte: new Date(new Date().getFullYear(), 0, 1) }
-                    },
-                    select: { amount: true }
-                });
-                const yearTotalIncome = yearlyIncomes.reduce((sum: number, i) => sum + i.amount, 0);
+                const yearTotalIncome = yearIncomeAgg._sum.amount || 0;
 
                 // Chart Data Preparation
-                // Group by month for chart
-                const incomeMap = new Map<string, number>();
-                incomes.forEach(i => {
-                    const key = new Date(i.date).toLocaleDateString('uk-UA', { month: 'short', day: period === 'month' ? 'numeric' : undefined });
-                    incomeMap.set(key, (incomeMap.get(key) || 0) + i.amount);
-                });
-                const incomeDynamics = Array.from(incomeMap.entries()).map(([date, amount]) => ({ date, amount, type: 'income' as const }));
+                const incomeDynamics = dynamicsRows.map((row) => ({
+                    date: new Date(row.bucket).toLocaleDateString("uk-UA", {
+                        month: "short",
+                        day: period === "month" ? "numeric" : undefined,
+                    }),
+                    amount: Number(row.total || 0),
+                    type: "income" as const,
+                }));
 
                 // Structure
-                const incomeSourceMap = new Map<string, number>();
-                incomes.forEach(i => incomeSourceMap.set(i.source, (incomeSourceMap.get(i.source) || 0) + i.amount));
-                const incomeStructure = Array.from(incomeSourceMap.entries())
-                    .map(([name, value], i) => ({ name, value, color: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981'][i % 4] }));
+                const incomeStructure = incomeStructureRows
+                    .map((row, i) => ({
+                        name: row.source,
+                        value: row._sum.amount || 0,
+                        color: ['#3b82f6', '#8b5cf6', '#ec4899', '#10b981'][i % 4],
+                    }));
 
-                const expenseCatMap = new Map<string, number>();
-                expenses.forEach((e: { category: string; amount: number }) => expenseCatMap.set(e.category, (expenseCatMap.get(e.category) || 0) + e.amount));
-                const expenseStructure = Array.from(expenseCatMap.entries())
-                     .map(([name, value], i) => ({ name, value, color: ['#ef4444', '#f97316', '#eab308', '#64748b'][i % 4] }));
+                const expenseStructure = expenseStructureRows
+                    .map((row, i) => ({
+                        name: row.category,
+                        value: row._sum.amount || 0,
+                        color: ['#ef4444', '#f97316', '#eab308', '#64748b'][i % 4],
+                    }));
 
                 const limitPercent = incomeLimit > 0 ? (yearTotalIncome / incomeLimit) * 100 : 0;
                 let limitStatus: 'ok' | 'warning' | 'danger' = 'ok';

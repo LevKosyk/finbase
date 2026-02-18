@@ -12,11 +12,20 @@ interface Insight {
 
 import { useUI } from "@/components/providers/UIProvider";
 
-export default function AIInsightsMock({ insights }: { insights: Insight[] }) {
+export default function AIInsightsMock({
+    insights,
+    maxItems = 3,
+    compact = false,
+}: {
+    insights: Insight[];
+    maxItems?: number;
+    compact?: boolean;
+}) {
     const { openAIHelper } = useUI();
+    const visibleInsights = insights.slice(0, Math.max(1, maxItems));
 
     return (
-        <div className="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 p-6 md:p-8 rounded-[32px] text-white shadow-xl flex flex-col h-full relative overflow-hidden group hover:scale-[1.01] transition-transform duration-300 border border-white/5">
+        <div className={`bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950 ${compact ? "p-5 md:p-6" : "p-6 md:p-8"} rounded-[32px] text-white shadow-xl flex flex-col ${compact ? "min-h-[280px]" : "h-full"} relative overflow-hidden group hover:scale-[1.01] transition-transform duration-300 border border-white/5`}>
              {/* Background Effects */}
              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-white/20 transition-all duration-700"></div>
              <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none"></div>
@@ -28,15 +37,15 @@ export default function AIInsightsMock({ insights }: { insights: Insight[] }) {
                  <h3 className="text-lg font-bold">AI Аналітика</h3>
             </div>
 
-            <div className="flex-1 space-y-4 relative z-10">
-                {insights.map(insight => (
+            <div className={`flex-1 ${compact ? "space-y-3" : "space-y-4"} relative z-10`}>
+                {visibleInsights.map(insight => (
                     <button 
                         key={insight.id} 
                         onClick={() => openAIHelper(`Розкажи детальніше про: ${insight.title}`)}
-                        className="w-full text-left bg-white/5 backdrop-blur-sm border border-white/10 p-4 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer group/item"
+                        className={`w-full text-left bg-white/5 backdrop-blur-sm border border-white/10 ${compact ? "p-3" : "p-4"} rounded-2xl hover:bg-white/10 transition-colors cursor-pointer group/item`}
                     >
-                        <h4 className="font-bold text-sm mb-1 text-purple-100 group-hover/item:text-white transition-colors">{insight.title}</h4>
-                        <p className="text-xs text-indigo-100/80 leading-relaxed">{insight.description}</p>
+                        <h4 className="font-bold text-sm mb-1 text-purple-100 group-hover/item:text-white transition-colors line-clamp-1">{insight.title}</h4>
+                        <p className="text-xs text-indigo-100/80 leading-relaxed line-clamp-2">{insight.description}</p>
                     </button>
                 ))}
             </div>

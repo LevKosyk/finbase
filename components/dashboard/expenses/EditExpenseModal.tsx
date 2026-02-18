@@ -6,6 +6,8 @@ import { X, Save } from "lucide-react";
 import { getExpenseCategories, updateExpense } from "@/app/actions/expenses";
 import { emitDashboardEvent, type ExpenseRow } from "@/lib/dashboard-events";
 import { useToast } from "@/components/providers/ToastProvider";
+import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 interface EditExpenseModalProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
   const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
   const toast = useToast();
+  const { mutate } = useSWRConfig();
 
   useEffect(() => {
     async function loadCategories() {
@@ -74,6 +77,7 @@ export default function EditExpenseModal({ isOpen, onClose, expense }: EditExpen
       });
       if (result.success && result.expense) {
         emitDashboardEvent("expense:update:optimistic", { id: expense.id, row: result.expense });
+        queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
         toast.success({ title: "Витрату оновлено" });
         onClose();
       } else {

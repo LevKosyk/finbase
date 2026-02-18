@@ -59,7 +59,10 @@ export default function AiChat({ isOpen, onClose }: { isOpen: boolean; onClose: 
       }
 
       const data = await response.json();
-      const aiMessage = data.choices[0].message;
+      const aiMessage = data.assistant || data.choices?.[0]?.message;
+      if (!aiMessage?.content) {
+        throw new Error("Empty AI response");
+      }
 
       setMessages(prev => [...prev, aiMessage]);
     } catch (error: any) {

@@ -12,6 +12,7 @@ import { measureAction } from "@/lib/performance";
 import { checkAndStoreIdempotency } from "@/lib/idempotency";
 import { enforceRateLimit } from "@/lib/security";
 import { headers } from "next/headers";
+import { enforceUserFopGroup3 } from "@/lib/fop-group-guard";
 
 function isMissingTableError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
@@ -108,6 +109,7 @@ export async function previewBankStatement(rows: BankStatementRow[]) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
+  await enforceUserFopGroup3(user.id, "action.bank.preview");
 
   let rules: Array<{
     direction: string;
@@ -193,6 +195,7 @@ export async function importBankStatement(rows: BankStatementRow[], fileName = "
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
+  await enforceUserFopGroup3(user.id, "action.bank.import");
   if (rows.length > 10000) {
     return { success: false, error: "Too many rows. Limit is 10000." };
   }
@@ -234,13 +237,23 @@ export async function importBankStatement(rows: BankStatementRow[], fileName = "
   const expenseCategories = await getExpenseCategories();
   const defaultExpenseCategory = expenseCategories[0] || "Інше";
 
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+  for (const row of rows) {
+    const d = safeDate(row.date);
+    if (!d) continue;
+    if (!minDate || d < minDate) minDate = d;
+    if (!maxDate || d > maxDate) maxDate = d;
+  }
+
+  const existingDateFilter = minDate && maxDate ? { gte: minDate, lte: maxDate } : undefined;
   const [existingIncome, existingExpense] = await Promise.all([
     prisma.income.findMany({
-      where: { userId: user.id, deletedAt: null },
+      where: { userId: user.id, deletedAt: null, ...(existingDateFilter ? { date: existingDateFilter } : {}) },
       select: { date: true, amount: true, source: true, type: true }
     }),
     prisma.expense.findMany({
-      where: { userId: user.id, deletedAt: null },
+      where: { userId: user.id, deletedAt: null, ...(existingDateFilter ? { date: existingDateFilter } : {}) },
       select: { date: true, amount: true, description: true, category: true }
     }),
   ]);
@@ -394,6 +407,7 @@ export async function getStatementImports() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
+  await enforceUserFopGroup3(user.id, "action.bank.history");
 
   try {
     return await withRedisCache(cacheKey("user", user.id, "statement-imports"), 90, async () => {

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import type { CategorizationRuleInput } from "@/lib/types/rules";
 import { cacheKey, invalidateUserCache, withRedisCache } from "@/lib/redis-cache";
+import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 
 function isMissingTableError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
@@ -99,6 +100,13 @@ export async function updateCategorizationRule(id: string, input: Partial<Catego
 }
 
 export async function deleteCategorizationRule(id: string) {
+  const access = await ensureSensitiveActionAccess({
+    action: "rules.delete",
+    requireRecentReauth: true,
+    requireTwoFactor: true,
+  });
+  if (!access.ok) return { success: false, error: access.error };
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Unauthorized" };
@@ -115,6 +123,7 @@ export async function deleteCategorizationRule(id: string) {
   }
 
   revalidatePath("/dashboard/rules");
+  revalidatePath("/dashboard/settings/rules");
   await invalidateUserCache(user.id);
   return { success: true };
 }

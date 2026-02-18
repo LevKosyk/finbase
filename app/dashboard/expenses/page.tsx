@@ -6,6 +6,7 @@ import DataState from "@/components/ui/DataState";
 import { isDynamicServerUsageError } from "@/lib/is-dynamic-server-error";
 import ExpensesLiveSection from "@/components/dashboard/expenses/ExpensesLiveSection";
 import ExpenseTrash from "@/components/dashboard/expenses/ExpenseTrash";
+import PageShell from "@/components/dashboard/shared/PageShell";
 
 export default async function ExpensesPage({
   searchParams,
@@ -39,7 +40,7 @@ export default async function ExpensesPage({
     if (isDynamicServerUsageError(error)) throw error;
     console.error("Expenses page error:", error);
     return (
-      <div className="pb-12 max-w-6xl mx-auto">
+      <div className="pb-10 max-w-7xl mx-auto">
         <DataState
           variant="error"
           title="Не вдалося завантажити витрати"
@@ -50,25 +51,23 @@ export default async function ExpensesPage({
   }
 
   return (
-    <div className="pb-12 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Облік витрат</h1>
-          <p className="text-gray-500 text-lg">Контроль витрат для прозорої звітності</p>
-        </div>
-        <div className="flex gap-3">
+    <PageShell
+      title="Облік витрат"
+      description="Контроль витрат для прозорої звітності."
+      actions={
+        <>
           <ExpenseExport />
           <ExpenseImport />
           <AddExpenseModal />
-        </div>
-      </div>
-
+        </>
+      }
+    >
       <ExpensesLiveSection
         initialExpenses={expenses}
         initialStats={stats}
         query={{ q, category, startDate, endDate, minAmount, maxAmount }}
       />
       <ExpenseTrash items={deletedExpenses} />
-    </div>
+    </PageShell>
   );
 }

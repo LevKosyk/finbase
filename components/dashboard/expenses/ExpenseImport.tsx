@@ -10,6 +10,7 @@ import type { ExpenseImportRow } from "@/lib/types/expenses";
 import { trackEvent } from "@/lib/analytics-client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useSWRConfig } from "swr";
+import { queueDashboardRevalidateByPriority } from "@/lib/dashboard-swr";
 
 const headerMap: Record<string, keyof ExpenseImportRow> = {
   date: "date",
@@ -60,7 +61,7 @@ export default function ExpenseImport() {
         if (res.success) {
           trackEvent("expense_import_success", { imported_count: res.count || 0, format: "csv" });
           toast.success({ title: "Імпорт завершено", description: `Імпортовано записів: ${res.count || 0}` });
-          void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+          queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
         } else {
           trackEvent("expense_import_failed", { reason: res.error || "import_failed", format: "csv" });
           toast.error({ title: "Помилка імпорту", description: res.error || "Спробуйте ще раз." });
@@ -88,7 +89,7 @@ export default function ExpenseImport() {
       if (res.success) {
         trackEvent("expense_import_success", { imported_count: res.count || 0, format: "xlsx" });
         toast.success({ title: "Імпорт завершено", description: `Імпортовано записів: ${res.count || 0}` });
-        void mutate((key) => typeof key === "string" && (key.startsWith("/api/dashboard/expenses") || key.startsWith("/api/dashboard/statistics")));
+        queueDashboardRevalidateByPriority(mutate, { immediate: ["expenses"], deferred: ["statistics"] });
       } else {
         trackEvent("expense_import_failed", { reason: res.error || "import_failed", format: "xlsx" });
         toast.error({ title: "Помилка імпорту", description: res.error || "Спробуйте ще раз." });
@@ -168,7 +169,8 @@ export default function ExpenseImport() {
       />
       <Button
         variant="secondary"
-        className="min-w-[132px]"
+        size="md"
+        className="min-w-[148px]"
         leftIcon={<UploadCloud className="w-5 h-5" />}
         onClick={() => inputRef.current?.click()}
         isLoading={isLoading}

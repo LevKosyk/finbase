@@ -50,12 +50,12 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((card, idx) => (
-            <div key={idx} className="bg-white dark:bg-gray-900 rounded-[32px] p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300">
-              <div className="flex justify-between items-start mb-5">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.lightColor}`}>
-                  <card.icon className="w-6 h-6" />
+            <div key={idx} className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
+              <div className="flex justify-between items-start mb-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.lightColor}`}>
+                  <card.icon className="w-5 h-5" />
                 </div>
                 {card.change !== undefined && (
                   <div
@@ -71,8 +71,8 @@ export default function SummaryCards({ stats }: SummaryCardsProps) {
                 )}
               </div>
 
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-bold mb-1">{card.label}</p>
-              <h3 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+              <p className="text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">{card.label}</p>
+              <h3 className="text-xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
                 {typeof card.value === "number" ? `${card.value.toLocaleString("uk-UA")} ₴` : card.value}
               </h3>
 

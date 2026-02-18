@@ -17,18 +17,18 @@ interface FinancialChartProps {
 
 export default function FinancialChart({ data }: FinancialChartProps) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-[32px] p-6 md:p-8 border border-gray-100 dark:border-gray-700 shadow-sm h-full relative overflow-hidden group hover:shadow-md transition-all duration-300">
-      <div className="flex items-center justify-between mb-8 relative z-10">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 md:p-6 border border-gray-200 dark:border-gray-700 shadow-sm h-full">
+      <div className="flex items-center justify-between mb-4">
         <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Фінансова картина</h3>
             <p className="text-sm text-gray-400 dark:text-gray-500">Динаміка доходів та витрат</p>
         </div>
-        <div className="flex bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300">
+        <div className="flex bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300">
             Поточний рік
         </div>
       </div>
 
-      <div className="h-[300px] w-full relative z-10">
+      <div className="h-[230px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>

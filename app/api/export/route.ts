@@ -7,9 +7,12 @@ import { logAuditEvent } from "@/lib/audit-log";
 import { exportQuerySchema } from "@/lib/validation";
 import { ensureSensitiveActionAccess } from "@/lib/sensitive-action";
 import { enforceRateLimit } from "@/lib/security";
+import { getStatistics } from "@/app/actions/statistics";
+import { checkAndStoreIdempotency } from "@/lib/idempotency";
+import { getRequestContext } from "@/lib/request-security";
 
 type ExportFormat = "csv" | "xlsx" | "json" | "pdf";
-type ExportType = "incomes" | "expenses" | "profile";
+type ExportType = "incomes" | "expenses" | "profile" | "statistics";
 type ExportRow = Record<string, string | number | null | undefined>;
 
 function sanitizeSpreadsheetCell(value: unknown) {
@@ -87,35 +90,54 @@ export async function GET(req: Request) {
   const parsedQuery = exportQuerySchema.safeParse({
     type: url.searchParams.get("type") || "incomes",
     format: url.searchParams.get("format") || "csv",
+    period: url.searchParams.get("period") || undefined,
+    from: url.searchParams.get("from") || undefined,
+    to: url.searchParams.get("to") || undefined,
   });
   if (!parsedQuery.success) {
     return NextResponse.json({ error: "Invalid export query" }, { status: 400 });
   }
   const type = parsedQuery.data.type as ExportType;
   const format = parsedQuery.data.format as ExportFormat;
+  const period = parsedQuery.data.period || "year";
+  const from = parsedQuery.data.from;
+  const to = parsedQuery.data.to;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const ip = (req.headers.get("x-forwarded-for") || "unknown").split(",")[0]?.trim() || "unknown";
-  const burst = await enforceRateLimit(`export:burst:${user.id}:${ip}`, 10, 60);
-  if (!burst.allowed) {
+  const { ip, deviceFingerprint } = getRequestContext(req);
+  const burstUser = await enforceRateLimit(`export:burst:user:${user.id}`, 12, 60);
+  const burstIp = await enforceRateLimit(`export:burst:ip:${ip}`, 50, 60);
+  const burstDevice = await enforceRateLimit(`export:burst:device:${deviceFingerprint}`, 35, 60);
+  if (!burstUser.allowed || !burstIp.allowed || !burstDevice.allowed) {
     await logAuditEvent({
       userId: user.id,
       action: "security.alert.export_rate_limited",
       entityType: "security",
-      metadata: { ip },
+      metadata: { ip, deviceFingerprint },
     });
     return NextResponse.json({ error: "Too many export requests" }, { status: 429 });
   }
-  const daily = await enforceRateLimit(`export:daily:${user.id}`, 200, 60 * 60 * 24);
-  if (!daily.allowed) {
+  const dailyUser = await enforceRateLimit(`export:daily:user:${user.id}`, 200, 60 * 60 * 24);
+  const dailyDevice = await enforceRateLimit(`export:daily:device:${deviceFingerprint}`, 450, 60 * 60 * 24);
+  if (!dailyUser.allowed || !dailyDevice.allowed) {
     await logAuditEvent({
       userId: user.id,
       action: "security.alert.export_daily_limit",
       entityType: "security",
     });
     return NextResponse.json({ error: "Daily export limit exceeded" }, { status: 429 });
+  }
+
+  const idem = await checkAndStoreIdempotency({
+    scope: "api.export",
+    userId: user.id,
+    key: req.headers.get("x-idempotency-key") || `${type}:${format}:${period}:${from || ""}:${to || ""}`,
+    ttlSeconds: 60 * 15,
+  });
+  if (!idem.ok && idem.duplicate) {
+    return NextResponse.json({ error: "Duplicate export request" }, { status: 409 });
   }
 
   let rows: ExportRow[] = [];
@@ -142,7 +164,7 @@ export async function GET(req: Request) {
       description: e.description || "",
       amount: e.amount
     }));
-  } else {
+  } else if (type === "profile") {
     const settings = await prisma.fOPSettings.findUnique({ where: { userId: user.id } });
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
     rows = [
@@ -170,6 +192,42 @@ export async function GET(req: Request) {
         taxOffice: settings?.taxOffice || "",
         expenseCategories: settings?.expenseCategories || ""
       }
+    ];
+  } else {
+    const stats = await getStatistics(period, from, to);
+    if (!stats) {
+      return NextResponse.json({ error: "No statistics available for export" }, { status: 404 });
+    }
+    rows = [
+      { section: "KPI", metric: "income_total", value: stats.kpi.income.total, change_percent: stats.kpi.income.change },
+      { section: "KPI", metric: "expenses_total", value: stats.kpi.expenses.total, change_percent: stats.kpi.expenses.change },
+      { section: "KPI", metric: "net_profit_total", value: stats.kpi.netProfit.total, change_percent: stats.kpi.netProfit.change },
+      { section: "KPI", metric: "tax_total", value: stats.kpi.tax.total, change_percent: stats.kpi.tax.change },
+      { section: "FOP_LIMIT", metric: "year_income", value: stats.fop.limit.current },
+      { section: "FOP_LIMIT", metric: "limit_max", value: stats.fop.limit.max },
+      { section: "FOP_LIMIT", metric: "limit_percent", value: stats.fop.limit.percent },
+      ...stats.charts.incomeDynamics.map((item) => ({
+        section: "INCOME_DYNAMICS",
+        metric: item.date,
+        value: item.amount,
+        type: item.type,
+      })),
+      ...stats.charts.incomeStructure.map((item) => ({
+        section: "INCOME_STRUCTURE",
+        metric: item.name,
+        value: item.value,
+      })),
+      ...stats.charts.expenseStructure.map((item) => ({
+        section: "EXPENSE_STRUCTURE",
+        metric: item.name,
+        value: item.value,
+      })),
+      ...stats.insights.map((item) => ({
+        section: "INSIGHT",
+        metric: item.title,
+        value: item.description,
+        type: item.type,
+      })),
     ];
   }
 
@@ -218,7 +276,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const pdfTitle = type === "incomes" ? "Доходи" : type === "expenses" ? "Витрати" : "Профіль ФОП";
+  const pdfTitle = type === "incomes" ? "Доходи" : type === "expenses" ? "Витрати" : type === "profile" ? "Профіль ФОП" : "Статистика";
   const pdf = await toPdfBuffer(pdfTitle, rows);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

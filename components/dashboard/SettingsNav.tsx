@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, Shield, Bell, Building2, CreditCard, Laptop } from "lucide-react";
+import { User, Shield, Bell, Building2, CreditCard, Laptop, SlidersHorizontal } from "lucide-react";
 
 export default function SettingsNav() {
   const pathname = usePathname();
@@ -43,11 +43,17 @@ export default function SettingsNav() {
       href: "/dashboard/settings/system",
       icon: Laptop,
       active: pathname === "/dashboard/settings/system"
+    },
+    {
+      name: "Правила",
+      href: "/dashboard/settings/rules",
+      icon: SlidersHorizontal,
+      active: pathname === "/dashboard/settings/rules"
     }
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-1 p-1 bg-gray-100/80 rounded-2xl mb-8 w-fit">
+    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl mb-6 w-fit">
       {navItems.map((item) => {
         const isActive = item.active;
         return (
@@ -57,12 +63,12 @@ export default function SettingsNav() {
             className={`
               flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
               ${isActive 
-                ? "bg-white text-gray-900 shadow-sm shadow-gray-200/50" 
-                : "text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                ? "bg-[var(--fin-primary)] text-white shadow-sm shadow-blue-500/20" 
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
               }
             `}
           >
-            <item.icon className={`w-4 h-4 ${isActive ? "text-[var(--fin-primary)]" : ""}`} />
+            <item.icon className="w-4 h-4" />
             {item.name}
           </Link>
         );

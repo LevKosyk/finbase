@@ -7,6 +7,7 @@ import DataState from "@/components/ui/DataState";
 import { isDynamicServerUsageError } from "@/lib/is-dynamic-server-error";
 import IncomeLiveSection from "@/components/dashboard/income/IncomeLiveSection";
 import IncomeTrash from "@/components/dashboard/income/IncomeTrash";
+import PageShell from "@/components/dashboard/shared/PageShell";
 
 export default async function IncomePage({
     searchParams,
@@ -41,7 +42,7 @@ export default async function IncomePage({
       if (isDynamicServerUsageError(error)) throw error;
       console.error("Income page error:", error);
       return (
-        <div className="pb-12 max-w-6xl mx-auto">
+        <div className="pb-10 max-w-7xl mx-auto">
           <DataState
             variant="error"
             title="Не вдалося завантажити доходи"
@@ -52,26 +53,23 @@ export default async function IncomePage({
     }
 
   return (
-    <div className="pb-12 max-w-6xl mx-auto">
-      {/* Header with improved layout */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Облік доходів</h1>
-           <p className="text-gray-500 text-lg">Всі ваші фінансові надходження під контролем</p>
-        </div>
-        <div className="flex gap-3">
-            <IncomeExport />
-            <IncomeImport />
-            <AddIncomeModal />
-        </div>
-      </div>
-
+    <PageShell
+      title="Облік доходів"
+      description="Всі ваші фінансові надходження під контролем."
+      actions={
+        <>
+          <IncomeExport />
+          <IncomeImport />
+          <AddIncomeModal />
+        </>
+      }
+    >
       <IncomeLiveSection
         initialIncomes={incomes}
         initialStats={stats}
         query={{ q, type, startDate, endDate, minAmount, maxAmount }}
       />
       <IncomeTrash items={deletedIncomes} />
-    </div>
+    </PageShell>
   );
 }
