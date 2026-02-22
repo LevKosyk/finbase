@@ -22,7 +22,6 @@ export async function getDashboardStats() {
     return withRedisCache(redisKey, 120, async () => await unstable_cache(
         async () => {
             try {
-                // Fetch user settings for FOP group
                 const dbUser = await prisma.user.findUnique({
                     where: { id: user.id },
                     select: {
@@ -88,7 +87,6 @@ export async function getDashboardStats() {
                 const lastYearTotal = lastYearToDateIncomeAgg._sum.amount || 0;
                 const incomeChange = lastYearTotal === 0 ? (totalIncome > 0 ? 100 : 0) : ((totalIncome - lastYearTotal) / lastYearTotal) * 100;
 
-                // Chart Data (Group by Month)
                 const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
                 const monthMap = new Map<string, number>();
                 months.forEach(m => monthMap.set(m, 0));
@@ -162,10 +160,33 @@ export async function getDashboardStats() {
 }
 
 export async function getReminders() {
-    // In a real app, this would fetch from a 'Tasks' table or generate dynamic alerts
     return [
         { id: 1, title: "Сплатити ЄП за 1 квартал", date: "до 19.04", type: "tax", completed: false },
         { id: 2, title: "Подати декларацію", date: "до 09.04", type: "report", completed: false },
         { id: 3, title: "Перевірити ліміт доходу", date: "сьогодні", type: "alert", completed: true },
     ];
+}
+
+export async function getRecentTransactions(limit = 5) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    try {
+        const incomes = await prisma.income.findMany({
+            where: { userId: user.id, deletedAt: null },
+            orderBy: { date: "desc" },
+            take: limit,
+            select: { id: true, amount: true, source: true, date: true, type: true },
+        });
+        return incomes.map((i) => ({
+            id: i.id,
+            amount: Number(i.amount),
+            source: i.source,
+            date: i.date.toISOString(),
+            type: i.type,
+        }));
+    } catch {
+        return [];
+    }
 }

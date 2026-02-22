@@ -330,7 +330,6 @@ export async function getIncomeStats() {
                     orderBy: { date: 'asc' }
                 });
                 
-                // Calculate "This Month" (Current Month)
                 const now = new Date();
                 const currentMonth = now.getMonth();
                 const currentYear = now.getFullYear();
@@ -340,7 +339,6 @@ export async function getIncomeStats() {
                     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
                 });
 
-                // Calculate "Last Month" for comparison
                 const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                 const lastMonth = lastMonthDate.getMonth();
                 const lastMonthYear = lastMonthDate.getFullYear();
@@ -353,7 +351,6 @@ export async function getIncomeStats() {
                 const total = thisMonthIncomes.reduce((acc, curr) => acc + curr.amount, 0);
                 const lastMonthTotal = lastMonthIncomes.reduce((acc, curr) => acc + curr.amount, 0);
                 
-                // Calculate Change %
                 let change = 0;
                 if (lastMonthTotal === 0) {
                     change = total > 0 ? 100 : 0;
@@ -361,17 +358,12 @@ export async function getIncomeStats() {
                     change = ((total - lastMonthTotal) / lastMonthTotal) * 100;
                 }
 
-                // Average Check (Total / Count) for this month
                 const average = thisMonthIncomes.length > 0 ? total / thisMonthIncomes.length : 0;
                 
-                // Pending (Status check if strictly needed, otherwise 0 as mostly cash/direct)
-                // Assuming we might have a 'pending' status in the future or now. 
-                // The type has 'status', let's use it.
                 const pending = thisMonthIncomes
                     .filter(i => i.status === 'pending')
                     .reduce((acc, curr) => acc + curr.amount, 0);
 
-                // Chart Data
                 const monthMap = new Map<string, number>();
                 const months = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"];
                 

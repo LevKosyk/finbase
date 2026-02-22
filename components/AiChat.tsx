@@ -45,7 +45,7 @@ export default function AiChat({ isOpen, onClose }: { isOpen: boolean; onClose: 
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage], // send history
+          messages: [...messages, userMessage],
           currentPath: pathname
         })
       });

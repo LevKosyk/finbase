@@ -191,9 +191,6 @@ export async function signup(formData: FormData) {
     return { error: error.message };
   }
 
-  // 3. Extract the OTP code
-  // generateLink returns properties like: action_link, email_otp, hashed_token, etc.
-  // We need email_otp to send to the user.
   const otpCode = data.properties?.email_otp;
   
   if (!otpCode) {
@@ -439,8 +436,6 @@ async function logSession(userId: string) {
           });
         }
         
-        // Update last active of others? Or simpler: Just create new record. 
-        // Real auth systems manage tokens. Here we just log "Login activity".
     } catch (e) {
         console.error("Failed to log session:", e);
     }

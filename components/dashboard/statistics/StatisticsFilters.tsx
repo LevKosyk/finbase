@@ -36,10 +36,6 @@ export default function StatisticsFilters() {
         if (type === 'from') setFilters({ from: value });
         else setFilters({ to: value });
 
-        // Update URL only if we have valid dates or logic requires it
-        // For better UX, we could debounce this or wait for blur, 
-        // but for now let's update if both are present or just the one changed?
-        // Let's defer URL update slightly or just update on change.
         const params = new URLSearchParams(searchParams);
         if (type === 'from') params.set('from', value);
         else params.set('to', value);

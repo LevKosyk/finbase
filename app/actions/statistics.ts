@@ -162,7 +162,6 @@ export async function getStatistics(
 
                 const yearTotalIncome = yearIncomeAgg._sum.amount || 0;
 
-                // Chart Data Preparation
                 const incomeDynamics = dynamicsRows.map((row) => ({
                     date: new Date(row.bucket).toLocaleDateString("uk-UA", {
                         month: "short",

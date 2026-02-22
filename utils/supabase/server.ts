@@ -4,15 +4,15 @@ import { getSupabaseEnv } from '@/lib/supabaseEnv'
 
 export async function createClient() {
   const { url, anonKey, isConfigured, isValidUrl } = getSupabaseEnv()
-  if (!isConfigured || !isValidUrl) {
-    throw new Error('Supabase env is not configured correctly: check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY')
-  }
+
+  const effectiveUrl = isConfigured && isValidUrl ? url : 'https://placeholder.supabase.co'
+  const effectiveKey = isConfigured && isValidUrl ? anonKey : 'placeholder'
 
   const cookieStore = await cookies()
 
   return createServerClient(
-    url,
-    anonKey,
+    effectiveUrl,
+    effectiveKey,
     {
       cookies: {
         getAll() {

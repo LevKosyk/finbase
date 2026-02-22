@@ -52,7 +52,6 @@ export default function AddIncomeModal() {
             if (result.success && result.income) {
                 emitDashboardEvent("income:create:confirm", { tempId, row: result.income });
                 setIsOpen(false);
-                // Reset form
                 setAmount('');
                 setSource('');
                 setType('job');
