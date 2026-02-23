@@ -248,18 +248,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Roadmap
-
-- [ ] Bank account integration (Monobank / PrivatBank API)
-- [ ] Multi-currency support
-- [ ] Recurring income/expense templates
-- [ ] Mobile-native app (React Native)
-- [ ] Team access (accountant roles)
-- [ ] Automated tax report filing
-- [ ] Webhook notifications
-
----
-
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
